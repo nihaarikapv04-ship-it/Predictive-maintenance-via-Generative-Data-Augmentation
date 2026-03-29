@@ -1,0 +1,8 @@
+.venv/
+Data/
+runs/
+__pycache__/
+*.pkl
+*.pth
+*.pt
+.DS_Store
