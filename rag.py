@@ -15,7 +15,7 @@ app = Flask(__name__)
 client = Groq()
 
 # ── Load PDF + Vector DB (runs once on startup) ───────────────────────────────
-loader = PyPDFLoader("motor_manual.pdf")
+loader = PyPDFLoader("docs/motor_manual.pdf")
 docs = loader.load_and_split()
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
