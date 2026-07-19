@@ -1,0 +1,75 @@
+**MotorGuard AI** is a fully closed-loop **Observe–Diagnose–Prescribe (ODP)** framework for induction motor health monitoring. Designed entirely for edge deployment, the system natively fuses visual and vibration telemetry to detect faults, bridge the "Industrial Data Desert" via physics-constrained generative synthesis, and generate structured repair manuals on-device using Retrieval-Augmented Generation (RAG).
+
+## ⚙️ Hardware Architecture
+MotorGuard AI operates entirely on edge hardware with zero cloud dependency during inference:
+* **Edge Gateway:** Raspberry Pi 5 (Quad-core Cortex-A76, 4GB RAM)
+* **Sensors:** MPU-6050 IMU (Accelerometer & Gyroscope streaming at >1500Hz via I²C DMA) & Standard USB Webcam.
+* **Target Motors (Cross-Motor Validated):**
+    * 1-Phase 0.5 HP Jewel Motor (220V, 1440 RPM)
+    * 3-Phase Kirloskar Induction Motor (1440 RPM, TEFC)
+
+
+
+## 🚀 Core Intelligence Layers (The ODP Pipeline)
+
+### 1. Observe & Diagnose (Vision + Vibration Fusion)
+* **Vision Branch:** Edge-native YOLOv11n processes web-camera frames to detect surface-level anomalies (e.g., structural cracking, severe corrosion) at **27 ms latency**.
+* **Vibration Branch:** Raw time-series MPU-6050 telemetry undergoes strict Z-score standardization and conversion to spectrograms.
+* **Generative Synthesis:** A custom **Physics-Aware TimeGAN** solves the data scarcity problem by enforcing spectral energy at analytically derived bearing defect frequencies (BPFO, BPFI, BSF) through a physics-informed discriminator loss.
+* **Late Fusion:** A 2-layer LSTM with Monte Carlo Dropout fuses the 512-dim visual embeddings with vibration features (RMS, kurtosis) to deliver highly calibrated diagnostic health scores.
+
+### 2. Prescribe (RAG Engine)
+* Fault classifications trigger a local FAISS vector index built from manufacturer motor manuals.
+* A locally quantized 7B language model synthesizes the top-ranked manual chunks into structured, actionable repair protocols (Immediate Action, Repair Protocol, Preventive Schedule).
+
+### 3. Edge Dashboard & UI
+The entire system state is visualized on a dedicated web dashboard optimized for maintenance technicians. Key layout features include:
+* **Mission Tracker:** Dynamically updates with real-time fault classifications and the generated RAG repair protocols.
+* **Personnel Availability:** Tracks available technicians aligned with the required repair tasks.
+
+
+
+## 📊 Dataset: BMSIT Dual-Motor Edge Vibration
+To support reproducibility and zero-shot cross-motor generalization research, our custom telemetry dataset is fully open-sourced. 
+* **Link:** [BMSIT Dual-Motor Edge Vibration Dataset on Kaggle](https://www.kaggle.com/datasets/nihaarikapv/dual-induction-motor-edge-vibration-dataset)
+* **Details:** Contains raw 3-axis acceleration, angular velocity, and vibration magnitude for both the 1-Phase Jewel and 3-Phase Kirloskar motors.
+
+---
+
+## 🛠️ Installation & Reproduction
+
+**Hardware Constraints:**
+> ⚠️ **Note:** Full model training (YOLOv11 + Physics-Aware TimeGAN) requires a workstation with >8GB RAM or cloud GPU compute (e.g., NVIDIA A100). The edge inference scripts provided in this repository are optimized specifically to run natively on the Raspberry Pi 5.
+
+### Setup Instructions
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+   cd YOUR_REPO_NAME
+
+```
+
+2. Install the required dependencies:
+```bash
+pip install -r requirements.txt
+
+```
+
+
+3. Run the Zero-Shot Edge Inference Script (Pi 5 optimized):
+```bash
+python scripts/zero_shot_test.py --data path/to/Kirloskar_3Phase_TEFC_Vibration.csv
+
+```
+
+
+4. Launch the Web Dashboard:
+```bash
+python app.py
+
+```
+
+
+*Access the UI at `http://localhost:5000` to view the Mission Tracker and Personnel Availability modules.*
+
+---

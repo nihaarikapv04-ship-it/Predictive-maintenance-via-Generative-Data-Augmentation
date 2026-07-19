@@ -1,0 +1,13 @@
+[Unit]
+Description=MotorGuard AI ODP service
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/MotorGuardAI
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/.venv/bin/python /home/pi/MotorGuardAI/edge/orchestrator.py
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
