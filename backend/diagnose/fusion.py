@@ -10,7 +10,14 @@ import torch.nn.functional as F
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-FAULT_CLASSES = ['Normal', 'Inner Race Fault', 'Outer Race Fault', 'Ball Fault', 'Misalignment']
+FAULT_CLASSES = [
+    'Healthy Baseline',
+    'Mild Oxidation',
+    'Moderate Corrosion',
+    'Severe Corrosion',
+    'Structural Cracking',
+    'Contamination',
+]
 
 class FusionDiagnostics(nn.Module):
     """
@@ -229,7 +236,7 @@ class DiagnosticEngine:
         # Derive probabilities
         probs = np.random.dirichlet(np.ones(len(FAULT_CLASSES)))
         if h_mean > 80:
-            probs[0] = 0.9 + np.random.uniform(0, 0.05) # High prob for 'Normal'
+            probs[0] = 0.9 + np.random.uniform(0, 0.05)  # High prob for 'Healthy Baseline'
             probs = probs / np.sum(probs)
         predicted_fault_idx = int(np.argmax(probs))
         
