@@ -1,0 +1,43 @@
+# MotorGuard AI - macOS Development Dependencies
+# For development and testing on macOS (Apple Silicon compatible)
+
+# Core
+flask==3.1.1
+flask-cors==5.0.1
+requests==2.32.3
+numpy==1.26.4
+
+# Computer Vision
+opencv-python==4.10.0.84
+ultralytics==8.3.0
+
+# Vibration Processing
+scipy==1.13.1
+
+# Machine Learning (MPS support on Apple Silicon)
+torch==2.4.0
+torchvision==0.19.0
+
+# Dashboard
+streamlit==1.40.0
+plotly==5.24.0
+pandas==2.2.2
+
+# RAG Pipeline
+faiss-cpu==1.8.0
+sentence-transformers==3.3.0
+transformers==4.46.0
+bitsandbytes==0.44.1
+accelerate==1.1.0
+
+# Utilities
+python-dotenv==1.0.1
+Pillow==10.4.0
+reportlab==4.2.5
+
+# Development Tools
+pytest==8.3.3
+pytest-cov==5.0.0
+black==24.8.0
+flake8==7.1.1
+mypy==1.11.2
