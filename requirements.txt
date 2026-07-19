@@ -1,0 +1,17 @@
+numpy>=1.24,<2.0
+pandas
+scipy
+scikit-learn
+joblib
+matplotlib
+torch
+roboflow
+flask
+groq
+pydantic<2
+langchain-community
+chroma
+pypdf
+sentence-transformers
+ultralytics
+opencv-python-headless
