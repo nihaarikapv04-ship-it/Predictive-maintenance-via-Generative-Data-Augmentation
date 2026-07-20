@@ -225,7 +225,7 @@ This allows complete system testing without any hardware.
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [CWRU Bearing Dataset](https://engineering.case.edu/bearingdatacenter) - Vibration data patterns
 - [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) - Object detection framework
@@ -234,6 +234,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-<div align="center">
-  <strong>Built with ❤️ for Industrial IoT</strong>
-</div>
+
