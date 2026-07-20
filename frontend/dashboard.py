@@ -4,6 +4,15 @@ MotorGuard AI — Main Dashboard (Navigation Shell)
 Single entry point: streamlit run frontend/dashboard.py
 Routes to pages via st.session_state["current_page"].
 """
+import sys
+import os
+
+# Ensure the project root (parent of frontend/) is on sys.path
+# so that `from frontend.components.X import Y` works correctly.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 import streamlit as st
 
 # ── Page config (must be first) ──
