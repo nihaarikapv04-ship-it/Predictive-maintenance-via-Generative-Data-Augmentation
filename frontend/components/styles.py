@@ -46,6 +46,51 @@ def inject_css():
         background: #2d3348 !important;
         color: #00d4ff !important;
     }
+
+    /* GENERAL BUTTON STYLING */
+    .stButton > button {
+        background: #161b27 !important;
+        color: #00d4ff !important;
+        border: 1px solid #00d4ff !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        padding: 10px 22px !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton > button:hover {
+        background: #00d4ff !important;
+        color: #1A1A1A !important;  /* High-contrast dark charcoal text */
+        border-color: #00d4ff !important;
+        box-shadow: 0 4px 14px rgba(0, 212, 255, 0.35) !important;
+    }
+
+    /* PRIMARY BUTTONS ('Enter Simulation Mode', 'Enter Pipeline Mode') */
+    .stButton > button[kind="primary"], button[data-testid="baseButton-primary"] {
+        background: linear-gradient(135deg, #00d4ff 0%, #00a3cc 100%) !important;
+        color: #1A1A1A !important;  /* Dark charcoal text on bright cyan background */
+        border: none !important;
+        font-weight: 700 !important;
+    }
+    .stButton > button[kind="primary"]:hover, button[data-testid="baseButton-primary"]:hover {
+        background: linear-gradient(135deg, #33ddff 0%, #00b8e6 100%) !important;
+        color: #1A1A1A !important;
+        box-shadow: 0 6px 20px rgba(0, 212, 255, 0.45) !important;
+    }
+
+    /* SECONDARY BUTTONS ('Save Session', etc.) */
+    .stButton > button[kind="secondary"], button[data-testid="baseButton-secondary"] {
+        background: #1e2535 !important;
+        color: #e8eaf6 !important;
+        border: 1px solid #3d4663 !important;
+        font-weight: 600 !important;
+    }
+    .stButton > button[kind="secondary"]:hover, button[data-testid="baseButton-secondary"]:hover {
+        background: #2d3348 !important;
+        color: #00d4ff !important;
+        border-color: #00d4ff !important;
+    }
     
     /* Cards */
     .mg-card {

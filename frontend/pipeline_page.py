@@ -134,9 +134,10 @@ def render():
 
         sc1, sc2 = st.columns(2)
         with sc1:
-            res = st.selectbox("Resolution", list(RESOLUTIONS.keys()), index=0, key="pipe_res_sl")
+            res_options = list(RESOLUTIONS.keys())
+            res = st.selectbox("Resolution", res_options, index=res_options.index("1280x720") if "1280x720" in res_options else 0, key="pipe_res_sl")
         with sc2:
-            interval = st.slider("Capture Interval (s)", 0.5, 3.0, 1.0, 0.1, key="pipe_interval_sl")
+            interval = st.slider("Capture Interval (s)", 0.1, 3.0, 0.5, 0.1, key="pipe_interval_sl")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
