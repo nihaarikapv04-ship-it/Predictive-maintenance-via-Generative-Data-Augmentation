@@ -45,11 +45,13 @@ def render():
     b1, _, b2 = st.columns([1, 0.3, 1])
     with b1:
         if st.button("🔬  Enter Simulation Mode", use_container_width=True, type="primary"):
-            st.session_state.current_page = "simulation"
+            st.session_state['page'] = "simulation"
+            st.session_state['current_page'] = "simulation"
             st.rerun()
     with b2:
         if st.button("⚡  Enter Pipeline Mode", use_container_width=True, type="primary"):
-            st.session_state.current_page = "pipeline"
+            st.session_state['page'] = "pipeline"
+            st.session_state['current_page'] = "pipeline"
             st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)

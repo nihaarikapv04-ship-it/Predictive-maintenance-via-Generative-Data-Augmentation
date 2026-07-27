@@ -1,9 +1,10 @@
 """
 MotorGuard AI — Simulation Mode Page
-Three tabs: OBSERVE | DIAGNOSE | PRESCRIBE
+Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 """
 import streamlit as st
 import numpy as np
+import time
 from datetime import datetime
 from frontend.components.styles import ACCENT, FAULT_COLORS, PANEL_BG, HEALTHY, CRITICAL
 from frontend.components.camera import generate_sim_motor_frame
@@ -31,12 +32,12 @@ def render():
         with col_ctrl:
             st.markdown("**Simulation Controls**")
             fault = st.selectbox("Fault Type", CONDITIONS, key="sim_fault_sel")
-            st.session_state.sim_fault_class = fault
-
             conf = st.slider("Confidence Level", 0.50, 1.00, 0.85, 0.01, key="sim_conf_sl")
-            st.session_state.sim_confidence = conf
+            noise = st.slider("Noise Level", 0.0, 1.0, 0.2, 0.05, key="sim_noise_sl")
 
-            noise = st.slider("Noise Level", 0.0, 1.0, 0.2, 0.05, key="sim_noise")
+            # Save to shared session state for inter-tab communication
+            st.session_state['sim_fault_class'] = fault
+            st.session_state['sim_confidence'] = conf
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -60,18 +61,18 @@ def render():
 
     # ═══════════════════════ DIAGNOSE TAB ═══════════════════════
     with tab_diag:
+        # Inter-tab connection info
+        detected_fault = st.session_state.get('sim_fault_class', CONDITIONS[0])
+        st.info(f"Analyzing motor with detected condition from OBSERVE: **{detected_fault}**")
+
         col_sl, col_ch = st.columns([1, 2], gap="large")
 
         with col_sl:
             st.markdown("**Vibration Parameters**")
-            amp = st.slider("Amplitude (g)", 0.1, 5.0, 1.0, 0.1, key="sim_amp")
-            st.session_state.sim_amplitude = amp
-            freq = st.slider("Frequency (Hz)", 5.0, 200.0, 30.0, 1.0, key="sim_freq")
-            st.session_state.sim_frequency = freq
-            load = st.slider("Load Level (%)", 0.0, 100.0, 50.0, 5.0, key="sim_load")
-            st.session_state.sim_load = load
-            temp = st.slider("Temperature (°C)", 20.0, 120.0, 55.0, 1.0, key="sim_temp")
-            st.session_state.sim_temperature = temp
+            amp = st.slider("Amplitude (g)", 0.1, 5.0, 1.0, 0.1, key="sim_amp_sl")
+            freq = st.slider("Frequency (Hz)", 5.0, 200.0, 30.0, 1.0, key="sim_freq_sl")
+            load = st.slider("Load Level (%)", 0.0, 100.0, 50.0, 5.0, key="sim_load_sl")
+            temp = st.slider("Temperature (°C)", 20.0, 120.0, 55.0, 1.0, key="sim_temp_sl")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -85,16 +86,27 @@ def render():
             # Vibration plot
             vib_data = create_vibration_from_params(amp, freq)
             fig_vib = create_vibration_plot(vib_data, height=350)
-            st.plotly_chart(fig_vib, use_container_width=True, key="sim_vib")
+            st.plotly_chart(fig_vib, use_container_width=True, key="sim_vib_chart")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Health gauge
+            # Health gauge & calculation
             hs = health_from_params(amp, freq, load, temp)
-            st.session_state.sim_health_score = hs
-            fig_g = create_health_gauge(hs, st.session_state.prev_health)
-            st.session_state.prev_health = hs
-            st.plotly_chart(fig_g, use_container_width=True, key="sim_gauge")
+            # Adjust health score based on observed fault severity
+            if "severe" in detected_fault.lower() or "crack" in detected_fault.lower():
+                hs = min(hs, 35.0)
+            elif "moderate" in detected_fault.lower() or "contam" in detected_fault.lower():
+                hs = min(hs, 55.0)
+            elif "mild" in detected_fault.lower():
+                hs = min(hs, 75.0)
+
+            # Save computed health score for PRESCRIBE tab
+            st.session_state['sim_health_score'] = hs
+
+            prev_h = st.session_state.get('prev_health', 85.0)
+            fig_g = create_health_gauge(hs, prev_h)
+            st.session_state['prev_health'] = hs
+            st.plotly_chart(fig_g, use_container_width=True, key="sim_gauge_chart")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -111,6 +123,7 @@ def render():
 
             # Urgency
             urg_label, urg_color = urgency_from_health(hs)
+            st.session_state['sim_urgency'] = urg_label
             st.markdown(f"""
             <div class='mg-card' style='text-align:center'>
                 <div style='color:#888; font-size:0.85em'>Maintenance Urgency</div>
@@ -120,14 +133,17 @@ def render():
 
     # ═══════════════════════ PRESCRIBE TAB ═══════════════════════
     with tab_rx:
+        fc = st.session_state.get('sim_fault_class', CONDITIONS[0])
+        hs_val = st.session_state.get('sim_health_score', 85.0)
+
         st.markdown(f"""
         <div class='mg-card'>
-            <b>Input from OBSERVE:</b> {st.session_state.sim_fault_class}
-            &nbsp;|&nbsp; <b>Input from DIAGNOSE:</b> Health = {st.session_state.sim_health_score:.1f}
+            <b>Input from OBSERVE:</b> {fc}
+            &nbsp;|&nbsp; <b>Input from DIAGNOSE:</b> Health = {hs_val:.1f}
         </div>
         """, unsafe_allow_html=True)
 
         render_prescription(
-            fault_class=st.session_state.sim_fault_class,
-            health_score=st.session_state.sim_health_score,
+            fault_class=fc,
+            health_score=hs_val,
         )

@@ -1,12 +1,13 @@
 """
-MotorGuard AI — Camera Component (Lag-Free)
-=============================================
+MotorGuard AI — Camera Component (Lag-Free & Robust Mac Support)
+==================================================================
 Single-frame capture per Streamlit refresh cycle.
 Never runs a continuous loop. Opens → grabs 1 frame → closes.
 """
 import cv2
 import numpy as np
 import logging
+import time
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -62,14 +63,31 @@ def capture_one_frame(
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
 
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            logger.warning("Failed to read frame.")
+        # Mac compatibility: use cap.grab() + cap.retrieve()
+        cap.grab()
+        ret, frame = cap.retrieve()
+
+        # Fallback to cap.read() if retrieve failed
+        if not ret or frame is None or frame.size == 0:
+            ret, frame = cap.read()
+
+        # Retry logic if frame is blank or invalid
+        if not ret or frame is None or frame.size == 0 or np.mean(frame) < 5:
+            for attempt in range(3):
+                time.sleep(0.1)
+                cap.grab()
+                ret, frame = cap.retrieve()
+                if ret and frame is not None and frame.size > 0 and np.mean(frame) >= 5:
+                    break
+
+        if not ret or frame is None or frame.size == 0:
+            logger.warning("Failed to read valid frame from camera.")
             return None
 
         # Resize to target (ensures consistent size)
         frame = cv2.resize(frame, (w, h))
-        # BGR → RGB for Streamlit
+
+        # Convert BGR → RGB AFTER confirming frame is valid
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return frame_rgb
 

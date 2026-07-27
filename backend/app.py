@@ -37,7 +37,6 @@ class ModelRegistry:
             with self._lock:
                 if not self._loaded:
                     logger.info("Lazy loading models...")
-                    # Mock model loading here
                     self._models['yolo'] = "Loaded YOLO"
                     self._models['fusion'] = "Loaded Fusion Model"
                     self._loaded = True
@@ -45,7 +44,6 @@ class ModelRegistry:
 model_registry = ModelRegistry()
 
 def load_modules():
-    # Attempt to import real modules, fallback to mock modules if they don't exist
     try:
         from backend.observe import vision, vibration
         from backend.diagnose import fusion
@@ -60,29 +58,14 @@ def load_modules():
 
 vision, vibration, fusion, rag = load_modules()
 
-def track_latency(f):
-    """Decorator to track latency and format JSON response."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        start = time.time()
-        try:
-            result = f(*args, **kwargs)
-            latency_ms = (time.time() - start) * 1000
-            
-            return jsonify({
-                "status": "ok",
-                "data": result,
-                "latency_ms": round(latency_ms, 2)
-            })
-        except Exception as e:
-            latency_ms = (time.time() - start) * 1000
-            logger.exception(f"Error in {f.__name__}: {str(e)}")
-            return jsonify({
-                "status": "error",
-                "message": str(e),
-                "latency_ms": round(latency_ms, 2)
-            }), 500
-    return decorated
+def get_cpu_temp():
+    try:
+        if os.path.exists("/sys/class/thermal/thermal_zone0/temp"):
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                return float(f.read().strip()) / 1000.0
+        return 45.0
+    except Exception:
+        return 45.0
 
 @app.errorhandler(400)
 def bad_request(error):
@@ -97,95 +80,95 @@ def internal_error(error):
     return jsonify({"status": "error", "message": "Internal server error", "details": str(error)}), 500
 
 @app.route('/health', methods=['GET'])
-@track_latency
-def health_check():
-    """Returns system health status."""
-    uptime = time.time() - START_TIME
-    return {
-        "status": "healthy",
-        "uptime_seconds": round(uptime, 2),
-        "simulation_mode": SIMULATION_MODE,
-        "models_loaded": model_registry._loaded
-    }
+def health():
+    """Returns Raspberry Pi system health status."""
+    return jsonify({
+        'status': 'ok',
+        'uptime': time.time() - START_TIME,
+        'temperature': get_cpu_temp(),
+        'simulation_mode': SIMULATION_MODE
+    })
 
 @app.route('/observe/vision', methods=['POST'])
-@track_latency
 def observe_vision():
     """Accepts base64-encoded frame, runs YOLO inference."""
     data = request.json
     if not data or 'frame' not in data:
-        raise ValueError("Missing 'frame' in request body")
+        return jsonify({"status": "error", "message": "Missing 'frame' in request body"}), 400
     
     model_registry.load_models()
     result = vision.run_inference(data['frame']) if hasattr(vision, 'run_inference') else {"detections": []}
-    return result
+    return jsonify({"status": "ok", "data": result})
 
 @app.route('/observe/vibration/stream', methods=['GET'])
-def stream_vibration():
-    """SSE endpoint streaming vibration data."""
-    def generate():
-        import random
-        while True:
-            time.sleep(1)
-            data = {"x": random.random(), "y": random.random(), "z": random.random()}
-            yield f"data: {json.dumps(data)}\n\n"
-            
-    return Response(generate(), mimetype='text/event-stream')
+def vibration_stream():
+    """Endpoint returning vibration data (batch or simulation)."""
+    try:
+        if hasattr(vibration, 'get_reading'):
+            readings = [vibration.get_reading() for _ in range(100)]
+        else:
+            raise ImportError("vibration.get_reading not available")
+        return jsonify({'readings': readings, 'source': 'mpu6050'})
+    except Exception as e:
+        import numpy as np
+        readings = []
+        for i in range(100):
+            readings.append({
+                'ax': float(np.random.normal(0, 0.5)),
+                'ay': float(np.random.normal(0, 0.5)),
+                'az': float(np.random.normal(9.8, 0.3)),
+                'gx': float(np.random.normal(0, 2)),
+                'gy': float(np.random.normal(0, 2)),
+                'gz': float(np.random.normal(0, 2)),
+                'temp': float(np.random.normal(45, 2))
+            })
+        return jsonify({'readings': readings, 'source': 'simulation'})
 
 @app.route('/diagnose/fuse', methods=['POST'])
-@track_latency
 def diagnose_fuse():
     """Late-fusion endpoint that accepts vision + vibration features."""
     data = request.json
     if not data or 'vision_features' not in data or 'vibration_features' not in data:
-        raise ValueError("Missing required features in request")
+        return jsonify({"status": "error", "message": "Missing required features"}), 400
     
     model_registry.load_models()
-    result = fusion.fuse_features(data['vision_features'], data['vibration_features']) if hasattr(fusion, 'fuse_features') else {"health_score": 0.95, "uncertainty": 0.05}
-    return result
+    result = fusion.fuse_features(data['vision_features'], data['vibration_features']) if hasattr(fusion, 'fuse_features') else {"health_score": 85.0, "uncertainty": 0.05}
+    return jsonify({"status": "ok", "data": result})
 
 @app.route('/prescribe/repair', methods=['POST'])
-@track_latency
 def prescribe_repair():
     """Accepts diagnosis results, runs RAG pipeline, returns repair protocol."""
     data = request.json
-    if not data or 'diagnosis' not in data:
-        raise ValueError("Missing 'diagnosis' in request")
+    if not data:
+        return jsonify({"status": "error", "message": "Missing payload"}), 400
     
-    result = rag.get_repair_protocol(data['diagnosis']) if hasattr(rag, 'get_repair_protocol') else {"protocol": "Inspect motor bearings."}
-    return result
+    fault_class = data.get('fault_class', data.get('diagnosis', {}).get('fault_type', 'Healthy Baseline'))
+    health_score = data.get('health_score', data.get('diagnosis', {}).get('health_score', 85.0))
+    
+    result = rag.get_repair_protocol(fault_class, health_score) if hasattr(rag, 'get_repair_protocol') else {"protocol": "Inspect motor bearings."}
+    return jsonify({"status": "ok", "data": result})
 
 @app.route('/pipeline/run', methods=['POST'])
-@track_latency
 def run_pipeline():
-    """Runs the full Observe->Diagnose->Prescribe pipeline end-to-end."""
-    data = request.json
-    if not data:
-        raise ValueError("Empty request payload")
-        
-    # Example orchestrated flow
+    """Runs full pipeline."""
+    data = request.json or {}
     frame = data.get('frame', '')
     vibration_data = data.get('vibration_data', {})
     
-    # 1. Observe
     model_registry.load_models()
-    vision_res = vision.run_inference(frame) if hasattr(vision, 'run_inference') else {"features": [0.1, 0.2]}
-    vib_features = vibration.extract_features(vibration_data) if hasattr(vibration, 'extract_features') else {"features": [0.3, 0.4]}
+    vision_res = vision.run_inference(frame) if hasattr(vision, 'run_inference') else {"worst_condition": "Healthy Baseline", "confidence": 0.95}
+    vib_features = vibration.extract_features(vibration_data) if hasattr(vibration, 'extract_features') else {"rms": 0.5}
+    diagnosis_res = fusion.fuse_features(vision_res, vib_features) if hasattr(fusion, 'fuse_features') else {"health_score": 85.0}
+    repair_protocol = rag.get_repair_protocol("Healthy Baseline", 85.0) if hasattr(rag, 'get_repair_protocol') else {"protocol": "Check alignment."}
     
-    # 2. Diagnose
-    diagnosis_res = fusion.fuse_features(vision_res, vib_features) if hasattr(fusion, 'fuse_features') else {"health_score": 0.7}
-    
-    # 3. Prescribe
-    repair_protocol = rag.get_repair_protocol(diagnosis_res) if hasattr(rag, 'get_repair_protocol') else {"protocol": "Replace belt."}
-    
-    return {
-        "observe": {
-            "vision": vision_res,
-            "vibration": vib_features
-        },
-        "diagnose": diagnosis_res,
-        "prescribe": repair_protocol
-    }
+    return jsonify({
+        "status": "ok",
+        "data": {
+            "observe": {"vision": vision_res, "vibration": vib_features},
+            "diagnose": diagnosis_res,
+            "prescribe": repair_protocol
+        }
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

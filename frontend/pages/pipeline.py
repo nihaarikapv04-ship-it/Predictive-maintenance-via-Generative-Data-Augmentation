@@ -1,12 +1,13 @@
 """
 MotorGuard AI — Pipeline Mode Page
-Three tabs: OBSERVE | DIAGNOSE | PRESCRIBE
-Connected pipeline with real camera + Pi vibration data.
+Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
+Connects real camera + Raspberry Pi MPU-6050 vibration stream.
 """
 import streamlit as st
 import numpy as np
 import time
 import requests
+import pandas as pd
 from datetime import datetime
 from frontend.components.styles import ACCENT, FAULT_COLORS, PANEL_BG, HEALTHY, CRITICAL, WARNING
 from frontend.components.camera import capture_one_frame, draw_detection_overlay, RESOLUTIONS
@@ -14,6 +15,7 @@ from frontend.components.vibration import (
     create_vibration_plot, create_health_gauge, urgency_from_health,
 )
 from frontend.components.rag_display import render_prescription
+from frontend.pages.history import save_session
 
 CONDITIONS = [
     "Healthy Baseline", "Mild Oxidation", "Moderate Corrosion",
@@ -31,8 +33,50 @@ _BGR_COLORS = {
 }
 
 
+def check_pi_connection(url: str) -> bool:
+    """Check if Raspberry Pi backend is reachable at url."""
+    try:
+        r = requests.get(f"{url}/health", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def get_pi_vibration(url: str):
+    """Fetch vibration stream readings from Raspberry Pi backend."""
+    try:
+        r = requests.get(f"{url}/observe/vibration/stream", timeout=3)
+        return r.json()
+    except Exception:
+        return None
+
+
+def generate_sim_vibration():
+    """Fallback synthetic vibration data generator."""
+    t = time.time()
+    noise = np.random.normal(0, 0.1, 6)
+    return {
+        "ax": float(np.sin(t) + noise[0]),
+        "ay": float(np.cos(t) + noise[1]),
+        "az": float(np.sin(t * 0.5) + noise[2]),
+        "gx": float(np.cos(t * 1.5) + noise[3]),
+        "gy": float(np.sin(t * 2) + noise[4]),
+        "gz": float(np.cos(t * 0.2) + noise[5]),
+    }
+
+
 def render():
     st.markdown("<div class='mg-header diagnose'>⚡ Pipeline Mode — Live System</div>", unsafe_allow_html=True)
+
+    # ── Raspberry Pi Connection Settings in Sidebar ──
+    pi_ip = st.sidebar.text_input("🔌 Raspberry Pi IP", value="192.168.1.100", key="pi_ip")
+    pi_url = f"http://{pi_ip}:5000" if ":" not in pi_ip else f"http://{pi_ip}"
+
+    pi_connected = check_pi_connection(pi_url)
+    if pi_connected:
+        st.sidebar.success("🟢 Pi Connected")
+    else:
+        st.sidebar.error("🔴 Pi Not Connected")
 
     tab_obs, tab_diag, tab_rx = st.tabs(["👁️ OBSERVE", "🩺 DIAGNOSE", "💊 PRESCRIBE"])
 
@@ -51,38 +95,32 @@ def render():
             "🔌 External Camera": "external",
         }
         cam_source = source_map.get(src, "webcam")
-        st.session_state.pipe_camera_source = cam_source
 
         ip_url = ""
         if cam_source == "ip_camera":
             ip_url = st.text_input(
                 "IP Webcam URL", value="http://192.168.1.100:8080/video", key="pipe_ip_input"
             )
-            st.session_state.pipe_ip_url = ip_url
 
         # Settings row
         sc1, sc2 = st.columns(2)
         with sc1:
-            res = st.selectbox("Resolution", list(RESOLUTIONS.keys()), index=1, key="pipe_res")
-            st.session_state.pipe_resolution = res
+            res = st.selectbox("Resolution", list(RESOLUTIONS.keys()), index=1, key="pipe_res_sl")
         with sc2:
             interval = st.slider("Capture Interval (s)", 0.5, 3.0, 1.0, 0.1, key="pipe_interval_sl")
-            st.session_state.pipe_interval = interval
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Toggle
-        st.session_state.pipe_running = st.toggle(
-            "▶️ Start Camera", value=st.session_state.pipe_running, key="pipe_toggle"
-        )
+        # Toggle camera
+        pipe_running = st.toggle("▶️ Start Camera", key="pipe_toggle")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         # Capture frame
-        if st.session_state.pipe_running:
+        if pipe_running:
             frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
             if frame is not None:
-                # Simulate YOLO detection on the real frame
+                # YOLO classification simulation
                 weights = [0.30, 0.20, 0.18, 0.10, 0.07, 0.15]
                 cond = np.random.choice(CONDITIONS, p=weights)
                 lo = {
@@ -100,10 +138,13 @@ def render():
                 color_bgr = _BGR_COLORS.get(cond, (0, 255, 0))
                 annotated = draw_detection_overlay(frame, cond, conf, color_bgr)
 
-                st.session_state.pipe_fault_class = cond
-                st.session_state.pipe_confidence = conf
+                # Inter-tab connection state
+                st.session_state['pipe_fault_class'] = cond
+                st.session_state['pipe_confidence'] = conf
+                st.session_state['pipe_frame_timestamp'] = time.time()
 
-                st.image(annotated, use_container_width=True)
+                # Render camera image
+                st.image(annotated, channels="RGB", use_container_width=True)
 
                 # Detection card
                 f_color = FAULT_COLORS.get(cond, "#ffffff")
@@ -117,89 +158,59 @@ def render():
                 """, unsafe_allow_html=True)
                 st.progress(conf, text=f"Confidence: {conf:.1%}")
 
-                # Record detection
-                if len(st.session_state.pipe_det_history) > 20:
-                    st.session_state.pipe_det_history = st.session_state.pipe_det_history[-20:]
-                st.session_state.pipe_det_history.append({
-                    "Time": datetime.now().strftime("%H:%M:%S"),
-                    "Condition": cond,
-                    "Conf": f"{conf:.1%}",
-                    "Status": status,
-                })
             else:
                 st.error("❌ Camera not available. Check permissions or connection.")
-                st.session_state.pipe_running = False
         else:
             st.info("Toggle '▶️ Start Camera' above to begin live capture.")
 
     # ═══════════════ DIAGNOSE TAB ═══════════════
     with tab_diag:
-        st.markdown("**Data Source**")
-        data_src = st.radio(
-            "Source:", ["🔴 Live Raspberry Pi", "📁 Simulated Data"],
-            horizontal=True, key="pipe_data_src",
-        )
+        # Inter-tab connection: read fault_class from OBSERVE tab
+        detected_fault = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
+        st.info(f"Analyzing motor with detected condition from OBSERVE: **{detected_fault}**")
 
-        if data_src == "🔴 Live Raspberry Pi":
-            pi_ip = st.text_input(
-                "Pi IP:Port", value=st.session_state.pipe_pi_ip, key="pipe_pi_input"
-            )
-            st.session_state.pipe_pi_ip = pi_ip
+        st.markdown("**Vibration Data Feed**")
 
-            # Try connecting
-            try:
-                resp = requests.get(f"http://{pi_ip}/health", timeout=2)
-                if resp.ok:
-                    st.markdown(
-                        f"<span class='sdot on'></span> Pi Connected at {pi_ip}",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        "<span class='sdot off'></span> Pi not responding",
-                        unsafe_allow_html=True,
-                    )
-            except Exception:
-                st.markdown(
-                    "<span class='sdot off'></span> Pi not reachable — using simulated data",
-                    unsafe_allow_html=True,
-                )
+        # Fetch real or fallback vibration data
+        if pi_connected:
+            vib_response = get_pi_vibration(pi_url)
+            if vib_response and 'readings' in vib_response:
+                readings = vib_response['readings']
+                st.success(f"Received {len(readings)} live vibration samples from Raspberry Pi (Source: {vib_response.get('source', 'MPU-6050')})")
+                vib_sample = readings[-1]
+            else:
+                st.warning("Pi connected but no vibration stream data received — using fallback simulation")
+                vib_sample = generate_sim_vibration()
+        else:
+            st.info("Pi not connected — using simulated vibration data")
+            vib_sample = generate_sim_vibration()
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        # Update vibration history list in session_state
+        if 'pipe_vib_history' not in st.session_state:
+            st.session_state['pipe_vib_history'] = []
+        
+        st.session_state['pipe_vib_history'].append(vib_sample)
+        if len(st.session_state['pipe_vib_history']) > 100:
+            st.session_state['pipe_vib_history'] = st.session_state['pipe_vib_history'][-100:]
 
-        # Generate vibration sample
-        t = time.time()
-        noise = np.random.normal(0, 0.1, 6)
-        vib_sample = {
-            "ax": float(np.sin(t) + noise[0]),
-            "ay": float(np.cos(t) + noise[1]),
-            "az": float(np.sin(t * 0.5) + noise[2]),
-            "gx": float(np.cos(t * 1.5) + noise[3]),
-            "gy": float(np.sin(t * 2) + noise[4]),
-            "gz": float(np.cos(t * 0.2) + noise[5]),
-        }
-        st.session_state.pipe_vib_history.append(vib_sample)
-        if len(st.session_state.pipe_vib_history) > 100:
-            st.session_state.pipe_vib_history = st.session_state.pipe_vib_history[-100:]
-
-        # Plot
-        if st.session_state.pipe_vib_history:
-            fig_vib = create_vibration_plot(st.session_state.pipe_vib_history, height=350)
-            st.plotly_chart(fig_vib, use_container_width=True, key="pipe_vib")
+        # Plot vibration
+        fig_vib = create_vibration_plot(st.session_state['pipe_vib_history'], height=350)
+        st.plotly_chart(fig_vib, use_container_width=True, key="pipe_vib_chart")
 
         # Frequency markers
         st.caption("BPFO: 74.6 Hz  |  BPFI: 117.4 Hz")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Health gauge
-        sev = _COND_SEVERITY.get(st.session_state.pipe_fault_class, 0)
+        # Health score calculation using late-fusion logic
+        sev = _COND_SEVERITY.get(detected_fault, 0)
         hs = float(np.clip(90 - sev * 55 + np.random.normal(0, 2), 0, 100))
-        st.session_state.pipe_health_score = hs
+        st.session_state['pipe_health_score'] = hs
 
-        fig_g = create_health_gauge(hs, st.session_state.prev_health, height=250)
-        st.session_state.prev_health = hs
-        st.plotly_chart(fig_g, use_container_width=True, key="pipe_gauge")
+        prev_h = st.session_state.get('prev_health', 85.0)
+        fig_g = create_health_gauge(hs, prev_h, height=250)
+        st.session_state['prev_health'] = hs
+        st.plotly_chart(fig_g, use_container_width=True, key="pipe_gauge_chart")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -216,6 +227,7 @@ def render():
 
         # Urgency
         urg_label, urg_color = urgency_from_health(hs)
+        st.session_state['pipe_urgency'] = urg_label
         st.markdown(f"""
         <div class='mg-card' style='text-align:center'>
             <div style='color:#888; font-size:0.85em'>Maintenance Urgency</div>
@@ -228,15 +240,15 @@ def render():
         # Feature cards
         st.markdown("**Vibration Features**")
         f1, f2, f3 = st.columns(3)
-        rms_val = round(np.std([vib_sample[k] for k in vib_sample]) * 0.707, 3)
+        rms_val = round(np.std([vib_sample[k] for k in ["ax","ay","az"] if k in vib_sample]) * 0.707, 3)
         f1.metric("RMS (g)", rms_val)
         f2.metric("Kurtosis", round(3.0 + np.random.normal(0, 0.5), 2))
         f3.metric("Crest Factor", round(1.414 + np.random.normal(0, 0.2), 2))
 
     # ═══════════════ PRESCRIBE TAB ═══════════════
     with tab_rx:
-        fc = st.session_state.pipe_fault_class
-        hs_val = st.session_state.pipe_health_score
+        fc = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
+        hs_val = st.session_state.get('pipe_health_score', 85.0)
 
         st.markdown(f"""
         <div class='mg-card'>
@@ -251,7 +263,23 @@ def render():
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
+        # Save session to history automatically when running
+        conf = st.session_state.get('pipe_confidence', 0.85)
+        risk = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
+        etf = max(10, hs_val * 10)
+        
+        # Save session trigger button / auto saver
+        if st.button("💾 Save Session to History", key="save_session_btn"):
+            save_session(
+                fault_class=fc,
+                health_score=hs_val,
+                risk_level=risk,
+                etf_hours=etf,
+                mode="Pipeline"
+            )
+            st.success("Session saved to history!")
+
     # ═══════════════ AUTO-REFRESH ═══════════════
-    if st.session_state.pipe_running:
-        time.sleep(st.session_state.pipe_interval)
+    if st.session_state.get('pipe_toggle', False):
+        time.sleep(st.session_state.get('pipe_interval_sl', 1.0))
         st.rerun()
