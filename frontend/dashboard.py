@@ -15,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Must be first st call after set_page_config
 from frontend.components.styles import inject_css
 inject_css()
 
@@ -24,7 +23,6 @@ from frontend.simulation_page import render as render_simulation
 from frontend.pipeline_page import render as render_pipeline
 from frontend.history_page import render as render_history
 
-# Initialize session state
 defaults = {
     'page': 'home',
     'engine_name': '',
@@ -43,7 +41,6 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Sidebar
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo">
@@ -66,7 +63,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Pi connection in sidebar
     st.markdown("**🔌 Raspberry Pi**")
     pi_ip = st.text_input("IP Address", value=st.session_state.get('pi_ip', '192.168.1.100'), key="pi_ip_input_nav")
     st.session_state['pi_ip'] = pi_ip
@@ -75,7 +71,7 @@ with st.sidebar:
         try:
             r = requests.get(f"http://{ip}:5000/health", timeout=2)
             return r.status_code == 200
-        except:
+        except Exception:
             return False
             
     if check_pi(pi_ip):
@@ -83,7 +79,19 @@ with st.sidebar:
     else:
         st.markdown("<span class='status-disconnected'>🔴 Disconnected</span>", unsafe_allow_html=True)
 
-# Route
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.sidebar.expander("📖 How to connect Pi"):
+        st.markdown("""
+        **On your Raspberry Pi:**
+        ```bash
+        cd ~/MotorGuard-AI/backend
+        source venv/bin/activate
+        python app.py
+        ```
+        **Find your Pi IP address:**
+        Run `hostname -I` on your Pi terminal.
+        """)
+
 page = st.session_state.get('page', 'home')
 if page == 'home':
     render_home()

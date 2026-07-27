@@ -65,10 +65,10 @@ def generate_sim_vibration():
 def render():
     st.markdown("<div class='panel-header'>⚡ Pipeline Mode — Live System</div>", unsafe_allow_html=True)
 
-    # 🔧 Motor Configuration Header
+    # 🔧 Motor Configuration Header with Save Option
     st.markdown("### 🔧 Motor Configuration")
-    col1, col2 = st.columns(2)
-    with col1:
+    c_name, c_rpm, c_save = st.columns([2, 1, 1])
+    with c_name:
         engine_name = st.text_input(
             "Motor/Engine Name", 
             value=st.session_state.get('engine_name', ''),
@@ -76,12 +76,35 @@ def render():
             key="engine_name_input_pipe"
         )
         st.session_state['engine_name'] = engine_name
-    with col2:
+    with c_rpm:
         engine_rpm = st.number_input("RPM", value=1440, min_value=0, max_value=10000, key="engine_rpm_pipe")
         st.session_state['engine_rpm'] = engine_rpm
+    with c_save:
+        st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+        if st.button("💾 Save Session", key="save_btn_pipe", use_container_width=True):
+            fc = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
+            hs_val = st.session_state.get('pipe_health_score', 85.0)
+            conf_val = st.session_state.get('pipe_confidence', 0.85)
+            pi_ip_val = st.session_state.get('pi_ip', '192.168.1.100')
+            pi_connected = check_pi_connection(f"http://{pi_ip_val}:5000")
+            risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
+            etf_hours = max(10, hs_val * 10)
+            prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
+
+            save_session(
+                fault_class=fc,
+                health_score=hs_val,
+                risk_level=risk_level,
+                etf_hours=etf_hours,
+                prescription=prescription_text,
+                mode='Pipeline',
+                pi_connected=pi_connected,
+                engine_name=engine_name or "Unknown Motor",
+                confidence=conf_val
+            )
+            st.success("✅ Session saved to history!")
     st.divider()
 
-    # Pi IP and Connection Check
     pi_ip = st.session_state.get('pi_ip', '192.168.1.100')
     pi_url = f"http://{pi_ip}:5000" if ":" not in pi_ip else f"http://{pi_ip}"
     pi_connected = check_pi_connection(pi_url)
@@ -111,9 +134,9 @@ def render():
 
         sc1, sc2 = st.columns(2)
         with sc1:
-            res = st.selectbox("Resolution", list(RESOLUTIONS.keys()), index=0, key="pipe_res_sl") # Default 320x240 for speed
+            res = st.selectbox("Resolution", list(RESOLUTIONS.keys()), index=0, key="pipe_res_sl")
         with sc2:
-            interval = st.slider("Capture Interval (s)", 0.5, 3.0, 0.5, 0.1, key="pipe_interval_sl") # Default 0.5s
+            interval = st.slider("Capture Interval (s)", 0.5, 3.0, 1.0, 0.1, key="pipe_interval_sl")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -121,7 +144,7 @@ def render():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        img_container = st.empty()
+        camera_placeholder = st.empty()
 
         if pipe_running:
             frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
@@ -146,7 +169,7 @@ def render():
                 st.session_state['pipe_fault_class'] = cond
                 st.session_state['pipe_confidence'] = conf
 
-                img_container.image(annotated, channels="RGB", use_container_width=True)
+                camera_placeholder.image(annotated, channels="RGB", use_column_width=True)
 
                 f_color = FAULT_COLORS.get(cond, "#ffffff")
                 status = "HEALTHY" if cond == "Healthy Baseline" else "FAULTY"
@@ -159,7 +182,7 @@ def render():
                 """, unsafe_allow_html=True)
                 st.progress(conf, text=f"Confidence: {conf:.1%}")
             else:
-                st.error("❌ Camera not available. Check permissions or connection.")
+                camera_placeholder.warning("⚠️ Camera not available — check System Settings → Privacy & Security → Camera → enable Terminal/Python")
         else:
             st.info("Toggle '▶️ Start Camera' above to begin live capture.")
 
@@ -273,5 +296,5 @@ def render():
 
     # ═══════════════ AUTO-REFRESH ═══════════════
     if st.session_state.get('pipe_toggle', False):
-        time.sleep(st.session_state.get('pipe_interval_sl', 0.5))
+        time.sleep(st.session_state.get('pipe_interval_sl', 1.0))
         st.rerun()

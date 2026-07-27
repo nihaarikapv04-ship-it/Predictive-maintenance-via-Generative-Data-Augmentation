@@ -1,5 +1,5 @@
 """
-MotorGuard AI — Camera Component (Fast & Optimized for Streamlit)
+MotorGuard AI — Camera Component (Fast & Optimized for Mac AVFoundation)
 """
 import cv2
 import numpy as np
@@ -17,51 +17,44 @@ RESOLUTIONS = {
 
 
 def capture_one_frame(source="webcam", url="", resolution="320x240") -> Optional[np.ndarray]:
-    """Fast single frame capture - optimized for Streamlit."""
+    """Exact capture logic optimized for Mac AVFoundation and blank frame detection."""
     w, h = RESOLUTIONS.get(resolution, (320, 240))
     
     if source == "webcam":
-        device = 0
-    elif source == "ip_camera":
-        device = url if url else None
-        if device is None:
-            return None
-    else:
-        device = 0
-    
-    cap = None
-    try:
-        # Use AVFoundation backend on Mac for speed
-        cap = cv2.VideoCapture(device, cv2.CAP_AVFOUNDATION)
-        
-        # Force lowest acceptable resolution for speed
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-        cap.set(cv2.CAP_PROP_FPS, 15)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer lag
-        
+        # Try AVFoundation first (Mac native)
+        cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
         if not cap.isOpened():
-            return None
-        
-        # Flush buffer - read and discard 2 frames
-        for _ in range(2):
-            cap.grab()
-        
-        ret, frame = cap.retrieve()
-        if not ret or frame is None or frame.size == 0:
-            cap.release()
-            return None
-        
-        # Resize to target resolution
-        frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_LINEAR)
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        cap.release()
-        return frame_rgb
-        
-    except Exception as e:
-        if cap:
-            cap.release()
+            cap = cv2.VideoCapture(0)  # fallback
+    elif source == "ip_camera" and url:
+        cap = cv2.VideoCapture(url)
+    else:
         return None
+    
+    if not cap.isOpened():
+        return None
+    
+    # Critical Mac settings
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv2.CAP_PROP_FPS, 15)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    
+    # Warm up camera — discard stale frames
+    for _ in range(3):
+        cap.grab()
+    
+    ret, frame = cap.read()
+    cap.release()
+    
+    if not ret or frame is None or frame.size == 0:
+        return None
+    
+    # Check for blank frame
+    if np.mean(frame) < 3:
+        return None
+    
+    frame = cv2.resize(frame, (w, h))
+    return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
 
 def draw_detection_overlay(

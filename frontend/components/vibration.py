@@ -13,25 +13,36 @@ def create_vibration_plot(
     height: int = 350,
 ) -> go.Figure:
     """
-    6-channel vibration line chart (ax, ay, az, gx, gy, gz).
+    6-channel vibration line chart with specific colors:
+      ax=#ff6b6b, ay=#4ecdc4, az=#45b7d1, gx=#96ceb4, gy=#ffeaa7, gz=#dda0dd
     """
     channels = ["ax", "ay", "az", "gx", "gy", "gz"]
-    colors = ["#ff4444", "#00ff88", "#00d4ff", "#ff8c00", "#9b30ff", "#ffaa00"]
+    colors = {
+        "ax": "#ff6b6b",
+        "ay": "#4ecdc4",
+        "az": "#45b7d1",
+        "gx": "#96ceb4",
+        "gy": "#ffeaa7",
+        "gz": "#dda0dd",
+    }
 
     fig = go.Figure()
-    for i, ch in enumerate(channels):
+    for ch in channels:
         vals = [d.get(ch, 0) for d in history]
         fig.add_trace(go.Scatter(
             y=vals, mode="lines", name=ch,
-            line=dict(color=colors[i], width=1.3),
+            line=dict(color=colors[ch], width=1.4),
         ))
 
     fig.update_layout(
         template="plotly_dark", height=height,
-        margin=dict(l=0, r=0, t=28, b=0),
-        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+        margin=dict(l=10, r=10, t=30, b=10),
+        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center", font=dict(color="#e8eaf6")),
         xaxis_title="Sample", yaxis_title="Amplitude (g / °/s)",
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(26,31,46,0.5)",
+        paper_bgcolor="#161b27", plot_bgcolor="#161b27",
+        font=dict(color="#e8eaf6", family="Inter, sans-serif"),
+        xaxis=dict(gridcolor="#2d3348", zerolinecolor="#3d4663"),
+        yaxis=dict(gridcolor="#2d3348", zerolinecolor="#3d4663"),
     )
     return fig
 
@@ -60,19 +71,20 @@ def create_vibration_from_params(
 
 
 def create_health_gauge(score: float, prev: float = None, height: int = 250) -> go.Figure:
-    """Health score gauge 0-100 with colored bands."""
+    """Health score gauge 0-100 with colored bands and #161b27 background."""
     delta = {"reference": prev, "position": "top"} if prev is not None else None
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta" if delta else "gauge+number",
         value=score,
         delta=delta,
+        number=dict(font=dict(color="#00d4ff", size=36, family="Inter, sans-serif")),
         gauge={
-            "axis": {"range": [0, 100]},
-            "bar": {"color": "white"},
+            "axis": {"range": [0, 100], "tickcolor": "#e8eaf6"},
+            "bar": {"color": "#00d4ff"},
             "steps": [
                 {"range": [0, 40],  "color": "#ff4444"},
-                {"range": [40, 60], "color": "#ff8c00"},
-                {"range": [60, 80], "color": "#ffaa00"},
+                {"range": [40, 60], "color": "#ffaa00"},
+                {"range": [60, 80], "color": "#f0e130"},
                 {"range": [80, 100],"color": "#00ff88"},
             ],
         },
@@ -80,7 +92,8 @@ def create_health_gauge(score: float, prev: float = None, height: int = 250) -> 
     fig.update_layout(
         template="plotly_dark", height=height,
         margin=dict(l=20, r=20, t=30, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#161b27",
+        font=dict(color="#e8eaf6", family="Inter, sans-serif"),
     )
     return fig
 
@@ -116,7 +129,7 @@ def urgency_from_health(hs: float):
     if hs < 40:
         return "IMMEDIATE", "#ff4444"
     elif hs < 60:
-        return "MONITOR", "#ff8c00"
+        return "MONITOR", "#ffaa00"
     elif hs < 80:
-        return "ROUTINE", "#ffaa00"
+        return "ROUTINE", "#00d4ff"
     return "NONE", "#00ff88"
