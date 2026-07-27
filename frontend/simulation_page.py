@@ -4,15 +4,14 @@ Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 """
 import streamlit as st
 import numpy as np
-import time
-from datetime import datetime
-from frontend.components.styles import ACCENT, FAULT_COLORS, PANEL_BG, HEALTHY, CRITICAL
+from frontend.components.styles import FAULT_COLORS, HEALTHY, CRITICAL
 from frontend.components.camera import generate_sim_motor_frame
 from frontend.components.vibration import (
     create_vibration_plot, create_vibration_from_params,
     create_health_gauge, compute_features, health_from_params, urgency_from_health,
 )
 from frontend.components.rag_display import render_prescription
+from frontend.history_page import save_session
 
 CONDITIONS = [
     "Healthy Baseline", "Mild Oxidation", "Moderate Corrosion",
@@ -21,7 +20,23 @@ CONDITIONS = [
 
 
 def render():
-    st.markdown("<div class='mg-header observe'>🔬 Simulation Mode</div>", unsafe_allow_html=True)
+    st.markdown("<div class='panel-header'>🔬 Simulation Mode</div>", unsafe_allow_html=True)
+
+    # 🔧 Motor Configuration Header
+    st.markdown("### 🔧 Motor Configuration")
+    col1, col2 = st.columns(2)
+    with col1:
+        engine_name = st.text_input(
+            "Motor/Engine Name", 
+            value=st.session_state.get('engine_name', ''),
+            placeholder="e.g. Kirloskar 3-phase, Jewel 0.5HP",
+            key="engine_name_input_sim"
+        )
+        st.session_state['engine_name'] = engine_name
+    with col2:
+        engine_rpm = st.number_input("RPM", value=1440, min_value=0, max_value=10000, key="engine_rpm_sim")
+        st.session_state['engine_rpm'] = engine_rpm
+    st.divider()
 
     tab_obs, tab_diag, tab_rx = st.tabs(["👁️ OBSERVE", "🩺 DIAGNOSE", "💊 PRESCRIBE"])
 
@@ -46,7 +61,7 @@ def render():
             f_color = FAULT_COLORS.get(fault, "#ffffff")
             st.markdown(f"""
             <div class='mg-card' style='border-left:5px solid {f_color}'>
-                <div class='mg-badge' style='background:{f_color}22; color:{f_color}'>{fault}</div>
+                <div class='badge-healthy' style='display:inline-block;'>{fault}</div>
                 <div style='margin-top:10px'>
                     <b>Confidence:</b> {conf:.1%}<br>
                     <b>Status:</b> <span style='color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
@@ -61,7 +76,6 @@ def render():
 
     # ═══════════════════════ DIAGNOSE TAB ═══════════════════════
     with tab_diag:
-        # Inter-tab connection info
         detected_fault = st.session_state.get('sim_fault_class', CONDITIONS[0])
         st.info(f"Analyzing motor with detected condition from OBSERVE: **{detected_fault}**")
 
@@ -92,7 +106,6 @@ def render():
 
             # Health gauge & calculation
             hs = health_from_params(amp, freq, load, temp)
-            # Adjust health score based on observed fault severity
             if "severe" in detected_fault.lower() or "crack" in detected_fault.lower():
                 hs = min(hs, 35.0)
             elif "moderate" in detected_fault.lower() or "contam" in detected_fault.lower():
@@ -100,7 +113,6 @@ def render():
             elif "mild" in detected_fault.lower():
                 hs = min(hs, 75.0)
 
-            # Save computed health score for PRESCRIBE tab
             st.session_state['sim_health_score'] = hs
 
             prev_h = st.session_state.get('prev_health', 85.0)
@@ -126,7 +138,7 @@ def render():
             st.session_state['sim_urgency'] = urg_label
             st.markdown(f"""
             <div class='mg-card' style='text-align:center'>
-                <div style='color:#888; font-size:0.85em'>Maintenance Urgency</div>
+                <div style='color:#8892b0; font-size:0.85em'>Maintenance Urgency</div>
                 <div style='color:{urg_color}; font-size:1.8em; font-weight:700'>{urg_label}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -135,11 +147,12 @@ def render():
     with tab_rx:
         fc = st.session_state.get('sim_fault_class', CONDITIONS[0])
         hs_val = st.session_state.get('sim_health_score', 85.0)
+        conf_val = st.session_state.get('sim_confidence', 0.85)
 
         st.markdown(f"""
         <div class='mg-card'>
-            <b>Input from OBSERVE:</b> {fc}
-            &nbsp;|&nbsp; <b>Input from DIAGNOSE:</b> Health = {hs_val:.1f}
+            <b>From OBSERVE:</b> {fc}
+            &nbsp;|&nbsp; <b>From DIAGNOSE:</b> Health = {hs_val:.1f}
         </div>
         """, unsafe_allow_html=True)
 
@@ -147,3 +160,20 @@ def render():
             fault_class=fc,
             health_score=hs_val,
         )
+
+        risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
+        etf_hours = max(10, hs_val * 10)
+        prescription_text = f"Condition: {fc}. Health: {hs_val:.1f}. Recommended maintenance protocol generated."
+
+        save_session(
+            fault_class=fc,
+            health_score=hs_val,
+            risk_level=risk_level,
+            etf_hours=etf_hours,
+            prescription=prescription_text,
+            mode='Simulation',
+            pi_connected=False,
+            engine_name=st.session_state.get('engine_name', 'Unknown Motor'),
+            confidence=conf_val
+        )
+        st.success("✅ Session saved to history")

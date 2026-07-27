@@ -1,8 +1,3 @@
-"""
-MotorGuard AI — Main Dashboard
-================================
-Single entry point: PYTHONPATH=. streamlit run frontend/dashboard.py
-"""
 import sys
 import os
 
@@ -11,114 +6,92 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 import streamlit as st
+import requests
 
-# ── Page config (must be first) ──
 st.set_page_config(
     page_title="MotorGuard AI",
     page_icon="⚙️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-# ── Inject Inconsistent Theme Fix CSS ──
-st.markdown("""
-<style>
-/* Force dark theme everywhere */
-.stApp { background-color: #0e1117; color: #ffffff; }
-.stApp > header { background-color: #0e1117; }
-section[data-testid="stSidebar"] { 
-    background-color: #1a1f2e; 
-    border-right: 1px solid #2d3348;
-}
-section[data-testid="stSidebar"] button {
-    background-color: transparent;
-    color: #cccccc;
-    border: none;
-    text-align: left;
-    font-size: 15px;
-    padding: 10px 16px;
-    border-radius: 8px;
-    margin-bottom: 4px;
-}
-section[data-testid="stSidebar"] button:hover {
-    background-color: #2d3348;
-    color: #00d4ff;
-}
-.metric-card {
-    background-color: #1a1f2e;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-    border: 1px solid #2d3348;
-}
-.panel-header {
-    font-size: 18px;
-    font-weight: 600;
-    color: #00d4ff;
-    border-left: 3px solid #00d4ff;
-    padding-left: 12px;
-    margin-bottom: 20px;
-}
-div[data-testid="column"] {
-    padding: 0 12px;
-}
-.stTabs [data-baseweb="tab"] {
-    background-color: #1a1f2e;
-    color: #888888;
-    border-radius: 8px 8px 0 0;
-}
-.stTabs [aria-selected="true"] {
-    background-color: #2d3348;
-    color: #00d4ff;
-}
-</style>
-""", unsafe_allow_html=True)
+# Must be first st call after set_page_config
+from frontend.components.styles import inject_css
+inject_css()
 
-# ── Initialize session_state page ──
-if 'page' not in st.session_state:
-    st.session_state['page'] = 'home'
+from frontend.home_page import render as render_home
+from frontend.simulation_page import render as render_simulation
+from frontend.pipeline_page import render as render_pipeline
+from frontend.history_page import render as render_history
 
-# Also initialize current_page alias for backward compatibility
-st.session_state['current_page'] = st.session_state['page']
+# Initialize session state
+defaults = {
+    'page': 'home',
+    'engine_name': '',
+    'engine_rpm': 1440,
+    'sim_fault_class': 'Healthy Baseline',
+    'sim_health_score': 85.0,
+    'sim_confidence': 0.85,
+    'pipe_fault_class': 'Healthy Baseline',
+    'pipe_health_score': 85.0,
+    'pipe_confidence': 0.0,
+    'pi_ip': '192.168.1.100',
+    'pipeline_running': False,
+    'camera_source': 'webcam',
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-# ── Sidebar Navigation ──
+# Sidebar
 with st.sidebar:
-    st.markdown("# ⚙️ MotorGuard AI")
+    st.markdown("""
+    <div class="sidebar-logo">
+        <div class="sidebar-logo-text">⚙️ MotorGuard AI</div>
+        <div class="sidebar-logo-sub">Physics-Aware Maintenance</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    pages = {
+        'home': '🏠  Home',
+        'simulation': '🔬  Simulation Mode',
+        'pipeline': '⚡  Pipeline Mode',
+        'history': '📊  History',
+    }
+    
+    for key, label in pages.items():
+        if st.button(label, key=f"nav_{key}", use_container_width=True):
+            st.session_state['page'] = key
+            st.rerun()
+    
     st.markdown("---")
-    if st.button("🏠 Home", use_container_width=True):
-        st.session_state['page'] = 'home'
-        st.session_state['current_page'] = 'home'
-        st.rerun()
-    if st.button("🔬 Simulation Mode", use_container_width=True):
-        st.session_state['page'] = 'simulation'
-        st.session_state['current_page'] = 'simulation'
-        st.rerun()
-    if st.button("⚡ Pipeline Mode", use_container_width=True):
-        st.session_state['page'] = 'pipeline'
-        st.session_state['current_page'] = 'pipeline'
-        st.rerun()
-    if st.button("📊 History", use_container_width=True):
-        st.session_state['page'] = 'history'
-        st.session_state['current_page'] = 'history'
-        st.rerun()
+    
+    # Pi connection in sidebar
+    st.markdown("**🔌 Raspberry Pi**")
+    pi_ip = st.text_input("IP Address", value=st.session_state.get('pi_ip', '192.168.1.100'), key="pi_ip_input_nav")
+    st.session_state['pi_ip'] = pi_ip
+    
+    def check_pi(ip):
+        try:
+            r = requests.get(f"http://{ip}:5000/health", timeout=2)
+            return r.status_code == 200
+        except:
+            return False
+            
+    if check_pi(pi_ip):
+        st.markdown("<span class='status-connected'>🟢 Connected</span>", unsafe_allow_html=True)
+    else:
+        st.markdown("<span class='status-disconnected'>🔴 Disconnected</span>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.caption("v2.0 · Physics-Aware Generative Maintenance")
-
-# ── Route to Page ──
-page = st.session_state['page']
-
+# Route
+page = st.session_state.get('page', 'home')
 if page == 'home':
-    from frontend.pages.home import render
-    render()
+    render_home()
 elif page == 'simulation':
-    from frontend.pages.simulation import render
-    render()
+    render_simulation()
 elif page == 'pipeline':
-    from frontend.pages.pipeline import render
-    render()
+    render_pipeline()
 elif page == 'history':
-    from frontend.pages.history import render
-    render()
+    render_history()
 else:
-    st.error(f"Unknown page: {page}")
+    render_home()
