@@ -16,16 +16,21 @@ def inject_css():
         color: #e8eaf6 !important;
     }
     
-    /* Hide Streamlit branding */
+    /* Hide Streamlit footer & main menu while keeping sidebar toggle button visible */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        color: #e8eaf6 !important;
+    }
     
     /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #161b27 !important;
         border-right: 1px solid #2d3348 !important;
         padding-top: 0;
+        display: block !important;
+        visibility: visible !important;
     }
     section[data-testid="stSidebar"] * {
         color: #ccd6f6 !important;
