@@ -1,6 +1,5 @@
 # ⚙️ MotorGuard AI — Physics-Aware Generative Maintenance with Edge Deployment
 
-[![IEEE Accepted](https://img.shields.io/badge/IEEE%20IRAI-Accepted%202026-blue.svg)](https://ieee.org)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.37%2B-ff4b4b.svg)](https://streamlit.io)
 [![Cross-Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#-system-requirements)
@@ -21,7 +20,6 @@
 - [API Endpoints Reference](#-api-endpoints-reference)
 - [Project Directory Structure](#-project-directory-structure)
 - [Troubleshooting](#-troubleshooting)
-- [License & Citation](#-license--citation)
 
 ---
 
@@ -219,11 +217,3 @@ Predictive-maintenance-via-Generative-Data-Augmentation/
 - **Event Loop Closed Error (Python 3.14)**: Handled automatically by setting `fileWatcherType = "none"` in `.streamlit/config.toml`.
 - **Camera Access Issues**: Ensure your terminal or Python executable has permission to access the camera in OS privacy settings.
 - **Pi Disconnected Badge**: Verify that `python3 app.py` is active on the Pi and that the host machine can ping the Pi (`ping rpi.local` or `ping <IP>`).
-
----
-
-## 📜 Citation & License
-
-Accepted for publication at **IEEE IRAI 2026**: Motorguard AI *Physics-Aware Generative Maintenance with Edge Deployment*.
-
-

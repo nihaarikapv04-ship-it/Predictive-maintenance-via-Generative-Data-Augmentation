@@ -16,9 +16,6 @@ def render():
         <div style='font-size:1.05em; color:{TEXT_SECONDARY}; margin-top:8px'>
             Physics-Aware Generative Maintenance with Edge Deployment
         </div>
-        <div style='font-size:0.85em; color:#00ff88; margin-top:4px'>
-            Accepted at IEEE IRAI 2026
-        </div>
     </div>
     """, unsafe_allow_html=True)
 

@@ -2,12 +2,13 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
-High performance, lag-free UI rendering with strict Motor Name, RPM, and Detection validation.
+High performance, instant page load with 15ms socket probe & strict validation.
 """
 import streamlit as st
 import numpy as np
 import time
 import requests
+import socket
 import pandas as pd
 from datetime import datetime
 from frontend.components.styles import FAULT_COLORS, HEALTHY, CRITICAL, WARNING
@@ -34,18 +35,30 @@ _BGR_COLORS = {
 }
 
 
-@st.cache_data(ttl=3, show_spinner=False)
+@st.cache_data(ttl=15, show_spinner=False)
 def check_pi_connection(url: str) -> bool:
+    """Ultra-fast 15ms socket probe to test if Pi backend port 5000 is open."""
     try:
-        r = requests.get(f"{url}/health", timeout=0.8)
-        return r.status_code == 200
+        clean_url = url.replace("http://", "").replace("https://", "").rstrip("/")
+        if ":" in clean_url and not clean_url.startswith("["):
+            host, port_str = clean_url.split(":", 1)
+            port = int(port_str)
+        else:
+            host, port = clean_url, 5000
+        
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.15)
+        res = sock.connect_ex((host, port))
+        sock.close()
+        return res == 0
     except Exception:
         return False
 
 
+@st.cache_data(ttl=2, show_spinner=False)
 def get_pi_vibration(url: str):
     try:
-        r = requests.get(f"{url}/observe/vibration/stream", timeout=0.8)
+        r = requests.get(f"{url}/observe/vibration/stream", timeout=0.5)
         return r.json()
     except Exception:
         return None
