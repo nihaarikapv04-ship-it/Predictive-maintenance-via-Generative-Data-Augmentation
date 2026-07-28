@@ -30,9 +30,7 @@
 
 ---
 
-## 🚀 Apple Silicon Hardware Acceleration (32 GB RAM, 10-Core CPU/GPU)
-
-To take full advantage of Apple Silicon M-Series processors (10-core CPU/GPU + 32 GB Unified Memory), MotorGuard AI implements:
+## 🚀  Hardware Acceleration 
 
 1. **Streamlit Isolated Micro-Reruns (`@st.fragment`)**
    - Wraps high-FPS live camera streams and Plotly graphs with `@st.fragment(run_every=0.1)`.
@@ -43,7 +41,7 @@ To take full advantage of Apple Silicon M-Series processors (10-core CPU/GPU + 3
    - Locks capture resolution to **1280x720 @ 30 FPS** with zero UI thread blocking or stuttering.
 
 3. **OpenCV Multi-Core CPU Parallelization**
-   - Configures `cv2.setUseOptimized(True)` and `cv2.setNumThreads(8)` to parallelize image matrix ops across Apple Silicon CPU cores.
+   - Configures `cv2.setUseOptimized(True)` and `cv2.setNumThreads(8)` to parallelize image matrix ops across CPU cores.
 
 ---
 
