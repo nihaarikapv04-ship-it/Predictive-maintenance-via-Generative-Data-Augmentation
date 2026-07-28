@@ -7,6 +7,7 @@ if _PROJECT_ROOT not in sys.path:
 
 import streamlit as st
 import requests
+from frontend.components.camera import stop_camera_instance
 
 st.set_page_config(
     page_title="MotorGuard AI",
@@ -58,6 +59,8 @@ with st.sidebar:
     
     for key, label in pages.items():
         if st.button(label, key=f"nav_{key}", use_container_width=True):
+            if key != 'pipeline':
+                stop_camera_instance()
             st.session_state['page'] = key
             st.rerun()
     
@@ -67,6 +70,7 @@ with st.sidebar:
     pi_ip = st.text_input("IP Address", value=st.session_state.get('pi_ip', 'rpi.local'), key="pi_ip_input_nav")
     st.session_state['pi_ip'] = pi_ip
     
+    @st.cache_data(ttl=5, show_spinner=False)
     def check_pi(ip):
         try:
             ip_str = ip.strip()
@@ -79,7 +83,7 @@ with st.sidebar:
                     url = f"http://{ip_str}:5000/health"
             else:
                 url = f"{ip_str}/health"
-            r = requests.get(url, timeout=2)
+            r = requests.get(url, timeout=0.8)
             return r.status_code == 200
         except Exception:
             return False
