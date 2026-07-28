@@ -14,6 +14,7 @@ fastReruns = true
 maxUploadSize = 200
 enableCORS = false
 enableXsrfProtection = false
+fileWatcherType = "none"
 
 [runner]
 magicEnabled = false

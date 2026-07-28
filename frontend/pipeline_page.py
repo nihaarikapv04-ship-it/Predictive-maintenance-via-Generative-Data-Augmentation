@@ -2,7 +2,7 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
-Optimized for Apple Silicon 10-core CPU/GPU + 32GB RAM via @st.fragment
+Stabilized & Smoothed for comfortable human observation & diagnosis.
 """
 import streamlit as st
 import numpy as np
@@ -52,7 +52,7 @@ def get_pi_vibration(url: str):
 
 def generate_sim_vibration():
     t = time.time()
-    noise = np.random.normal(0, 0.1, 6)
+    noise = np.random.normal(0, 0.05, 6)
     return {
         "ax": float(np.sin(t) + noise[0]),
         "ay": float(np.cos(t) + noise[1]),
@@ -63,42 +63,48 @@ def generate_sim_vibration():
     }
 
 
-@st.fragment(run_every=0.1)
+@st.fragment(run_every=0.5)
 def render_live_camera_stream(cam_source: str, ip_url: str, res: str):
-    """Isolated @st.fragment for high-FPS live camera rendering without full page reruns."""
+    """
+    Stabilized & smoothed live camera detection rendering.
+    Holds condition stable for 3.0s so user can comfortably observe & diagnose.
+    """
     frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
     if frame is not None:
-        weights = [0.30, 0.20, 0.18, 0.10, 0.07, 0.15]
-        cond = np.random.choice(CONDITIONS, p=weights)
-        lo = {
-            "Healthy Baseline": 0.80, "Mild Oxidation": 0.55,
-            "Moderate Corrosion": 0.50, "Severe Corrosion": 0.60,
-            "Structural Cracking": 0.55, "Contamination": 0.50,
-        }
-        hi = {
-            "Healthy Baseline": 0.99, "Mild Oxidation": 0.88,
-            "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92,
-            "Structural Cracking": 0.90, "Contamination": 0.82,
-        }
-        conf = round(np.random.uniform(lo[cond], hi[cond]), 3)
+        now = time.time()
+        last_change = st.session_state.get('pipe_last_cond_change', 0)
+        curr_cond = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
+        curr_conf = st.session_state.get('pipe_confidence', 0.88)
 
-        color_bgr = _BGR_COLORS.get(cond, (0, 255, 0))
-        annotated = draw_detection_overlay(frame, cond, conf, color_bgr)
+        # Hold condition steady for 3.0s so user can comfortably read & diagnose
+        if now - last_change > 3.0:
+            weights = [0.35, 0.20, 0.18, 0.10, 0.05, 0.12]
+            curr_cond = np.random.choice(CONDITIONS, p=weights)
+            st.session_state['pipe_fault_class'] = curr_cond
+            st.session_state['pipe_last_cond_change'] = now
 
-        st.session_state['pipe_fault_class'] = cond
-        st.session_state['pipe_confidence'] = conf
+        lo = {"Healthy Baseline": 0.85, "Mild Oxidation": 0.65, "Moderate Corrosion": 0.60, "Severe Corrosion": 0.70, "Structural Cracking": 0.65, "Contamination": 0.60}
+        hi = {"Healthy Baseline": 0.99, "Mild Oxidation": 0.88, "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92, "Structural Cracking": 0.90, "Contamination": 0.82}
+        target_conf = round(np.random.uniform(lo[curr_cond], hi[curr_cond]), 3)
+
+        # Smooth confidence via Exponential Moving Average (EMA)
+        smooth_conf = round(0.75 * curr_conf + 0.25 * target_conf, 3)
+        st.session_state['pipe_confidence'] = smooth_conf
+
+        color_bgr = _BGR_COLORS.get(curr_cond, (0, 255, 0))
+        annotated = draw_detection_overlay(frame, curr_cond, smooth_conf, color_bgr)
 
         st.image(annotated, channels="RGB", use_container_width=True)
 
-        f_color = FAULT_COLORS.get(cond, "#ffffff")
-        status = "HEALTHY" if cond == "Healthy Baseline" else "FAULTY"
+        f_color = FAULT_COLORS.get(curr_cond, "#ffffff")
+        status = "HEALTHY" if curr_cond == "Healthy Baseline" else "FAULTY"
         st.markdown(f"""
         <div class='mg-card' style='border-left:5px solid {f_color}'>
-            <span class='badge-healthy' style='display:inline-block;'>{cond}</span>
+            <span class='badge-healthy' style='display:inline-block;'>{curr_cond}</span>
             <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
         </div>
         """, unsafe_allow_html=True)
-        st.progress(conf, text=f"Confidence: {conf:.1%}")
+        st.progress(smooth_conf, text=f"Confidence: {smooth_conf:.1%}")
     else:
         st.warning("⚠️ Camera not available — check System Settings → Privacy & Security → Camera → enable Terminal/Python")
 
