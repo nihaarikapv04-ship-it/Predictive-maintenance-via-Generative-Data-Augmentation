@@ -47,25 +47,30 @@ def render():
     with c_save:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("💾 Save Session", key="save_btn_sim", use_container_width=True):
-            fc = st.session_state.get('sim_fault_class', 'Healthy Baseline')
-            hs_val = st.session_state.get('sim_health_score', 85.0)
-            conf_val = st.session_state.get('sim_confidence', 0.85)
-            risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
-            etf_hours = max(10, hs_val * 10)
-            prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
+            e_name = st.session_state.get('engine_name', '').strip()
+            e_rpm = st.session_state.get('engine_rpm', 0)
+            if not e_name or e_rpm <= 0:
+                st.warning("⚠️ You haven't entered the Motor Name and valid RPM! Please fill in both fields above before saving.")
+            else:
+                fc = st.session_state.get('sim_fault_class', 'Healthy Baseline')
+                hs_val = st.session_state.get('sim_health_score', 85.0)
+                conf_val = st.session_state.get('sim_confidence', 0.85)
+                risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
+                etf_hours = max(10, hs_val * 10)
+                prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
 
-            save_session(
-                fault_class=fc,
-                health_score=hs_val,
-                risk_level=risk_level,
-                etf_hours=etf_hours,
-                prescription=prescription_text,
-                mode='Simulation',
-                pi_connected=False,
-                engine_name=engine_name or "Unknown Motor",
-                confidence=conf_val
-            )
-            st.success("✅ Session saved to history!")
+                save_session(
+                    fault_class=fc,
+                    health_score=hs_val,
+                    risk_level=risk_level,
+                    etf_hours=etf_hours,
+                    prescription=prescription_text,
+                    mode='Simulation',
+                    pi_connected=False,
+                    engine_name=e_name,
+                    confidence=conf_val
+                )
+                st.success(f"✅ Session for '{e_name}' ({e_rpm} RPM) saved to history!")
     st.divider()
 
     tab_obs, tab_diag, tab_rx = st.tabs(["👁️ OBSERVE", "🩺 DIAGNOSE", "💊 PRESCRIBE"])

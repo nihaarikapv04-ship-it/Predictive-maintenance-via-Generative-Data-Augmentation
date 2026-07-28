@@ -2,7 +2,7 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
-High performance, lag-free UI rendering with manual session saving.
+High performance, lag-free UI rendering with strict Motor Name, RPM, and Detection validation.
 """
 import streamlit as st
 import numpy as np
@@ -34,9 +34,10 @@ _BGR_COLORS = {
 }
 
 
+@st.cache_data(ttl=3, show_spinner=False)
 def check_pi_connection(url: str) -> bool:
     try:
-        r = requests.get(f"{url}/health", timeout=1.0)
+        r = requests.get(f"{url}/health", timeout=0.8)
         return r.status_code == 200
     except Exception:
         return False
@@ -44,7 +45,7 @@ def check_pi_connection(url: str) -> bool:
 
 def get_pi_vibration(url: str):
     try:
-        r = requests.get(f"{url}/observe/vibration/stream", timeout=1.0)
+        r = requests.get(f"{url}/observe/vibration/stream", timeout=0.8)
         return r.json()
     except Exception:
         return None
@@ -88,6 +89,7 @@ def render_live_camera_stream(cam_source: str, ip_url: str, res: str):
                 curr_cond = np.random.choice(CONDITIONS, p=weights)
                 st.session_state['pipe_fault_class'] = curr_cond
                 st.session_state['pipe_last_cond_change'] = now
+                st.session_state['pipe_motor_detected'] = True
 
         lo = {"Healthy Baseline": 0.85, "Mild Oxidation": 0.65, "Moderate Corrosion": 0.60, "Severe Corrosion": 0.70, "Structural Cracking": 0.65, "Contamination": 0.60}
         hi = {"Healthy Baseline": 0.99, "Mild Oxidation": 0.88, "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92, "Structural Cracking": 0.90, "Contamination": 0.82}
@@ -138,27 +140,36 @@ def render():
     with c_save:
         st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
         if st.button("💾 Save Session", key="save_btn_pipe", use_container_width=True):
-            fc = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
-            hs_val = st.session_state.get('pipe_health_score', 85.0)
-            conf_val = st.session_state.get('pipe_confidence', 0.85)
-            pi_ip_val = st.session_state.get('pi_ip', 'rpi.local')
-            pi_connected = check_pi_connection(f"http://{pi_ip_val}:5000")
-            risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
-            etf_hours = max(10, hs_val * 10)
-            prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
+            e_name = st.session_state.get('engine_name', '').strip()
+            e_rpm = st.session_state.get('engine_rpm', 0)
+            motor_detected = st.session_state.get('pipe_motor_detected', False)
 
-            save_session(
-                fault_class=fc,
-                health_score=hs_val,
-                risk_level=risk_level,
-                etf_hours=etf_hours,
-                prescription=prescription_text,
-                mode='Pipeline',
-                pi_connected=pi_connected,
-                engine_name=engine_name or "Unknown Motor",
-                confidence=conf_val
-            )
-            st.success("✅ Session saved to history!")
+            if not e_name or e_rpm <= 0:
+                st.warning("⚠️ You haven't entered the Motor Name and valid RPM! Please fill in both fields above before saving.")
+            elif not motor_detected:
+                st.warning("⚠️ No motor condition detected yet! Please toggle '▶️ Start Camera' in the OBSERVE tab and let the AI detect the motor condition before saving.")
+            else:
+                fc = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
+                hs_val = st.session_state.get('pipe_health_score', 85.0)
+                conf_val = st.session_state.get('pipe_confidence', 0.85)
+                pi_ip_val = st.session_state.get('pi_ip', 'rpi.local')
+                pi_connected = check_pi_connection(f"http://{pi_ip_val}:5000")
+                risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
+                etf_hours = max(10, hs_val * 10)
+                prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
+
+                save_session(
+                    fault_class=fc,
+                    health_score=hs_val,
+                    risk_level=risk_level,
+                    etf_hours=etf_hours,
+                    prescription=prescription_text,
+                    mode='Pipeline',
+                    pi_connected=pi_connected,
+                    engine_name=e_name,
+                    confidence=conf_val
+                )
+                st.success(f"✅ Session for '{e_name}' ({e_rpm} RPM) saved to history!")
     st.divider()
 
     pi_ip = st.session_state.get('pi_ip', 'rpi.local')
