@@ -1,2 +1,24 @@
+[theme]
+base = "dark"
+primaryColor = "#00d4ff"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#161b27"
+textColor = "#e8eaf6"
+
 [ui]
 hideTopBar = false
+
+[server]
+headless = true
+fastReruns = true
+maxUploadSize = 200
+enableCORS = false
+enableXsrfProtection = false
+
+[runner]
+magicEnabled = false
+fastReruns = true
+enforcePageConfigRequests = false
+
+[browser]
+gatherUsageStats = false

@@ -1,237 +1,146 @@
-<div align="center">
+# ⚙️ MotorGuard AI — Physics-Aware Generative Maintenance with Edge Deployment
 
-# ⚙️ MotorGuard AI
+![IEEE Accepted Paper](https://img.shields.io/badge/IEEE%20IRAI-Accepted%202026-blue.svg)
+![Python Version](https://img.shields.io/badge/Python-3.10%2B-green.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.59%2B-ff4b4b.svg)
+![Apple Silicon](https://img.shields.io/badge/Hardware%20Accel-Apple%20M--Series%2010--Core-black.svg)
+![Raspberry Pi](https://img.shields.io/badge/Edge-Raspberry%20Pi%205%20%2B%20MPU--6050-red.svg)
 
-### Predictive Maintenance via Generative Data Augmentation
-
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.4-red.svg)](https://pytorch.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.40-FF4B4B.svg)](https://streamlit.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-RPi%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
-
-**Real-time motor health monitoring combining Computer Vision, Vibration Analysis, Deep Learning Diagnostics, and AI-powered Repair Prescriptions.**
-
-[Features](#-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Dashboard](#-dashboard) • [API Reference](#-api-reference)
-
-</div>
+**MotorGuard AI** is an industrial predictive maintenance system combining **physics-informed neural models**, **edge telemetry**, **real-time computer vision**, and **RAG-driven prescriptive repair guidance**.
 
 ---
 
-## 🌟 Features
+## 🌟 Key Features & Capabilities
 
-| Module | Technology | Description |
-|--------|-----------|-------------|
-| **🔍 Observe** | YOLOv11n + CLAHE | Real-time visual fault detection with low-light enhancement |
-| **📈 Observe** | MPU-6050 @ 1500Hz | 6-axis vibration sensing with Butterworth bandpass filtering |
-| **🩺 Diagnose** | Late-Fusion LSTM | Multi-modal health scoring with Monte Carlo Dropout uncertainty |
-| **📝 Prescribe** | FAISS + Llama-3-8B | RAG-powered repair protocol generation with PDF reports |
-| **📊 Dashboard** | Streamlit + Plotly | Real-time dark-theme dashboard with 3-panel layout |
-| **🤖 Simulation** | CWRU-style Data | Full system demo without hardware using synthetic data |
+1. **👁️ Observe (Visual Fault Detection)**
+   - High-throughput **YOLOv11n** visual classification for 6 motor surface conditions (*Healthy Baseline*, *Mild Oxidation*, *Moderate Corrosion*, *Severe Corrosion*, *Structural Cracking*, *Contamination*).
+   - Real-time AVFoundation camera stream with bounding-box annotations and severity indicators.
 
-## 🏗️ Architecture
+2. **🩺 Diagnose (Multi-Modal Late Fusion)**
+   - 6-axis **MPU-6050 vibration telemetry** (accelerometer + gyroscope) streamed at 1500Hz from Raspberry Pi 5.
+   - Physics-aware **TimeGAN + LSTM** fusion model calculating motor health score (0–100) and **Monte Carlo Dropout** uncertainty estimates (±%).
 
-```
-MotorGuard AI
-├── OBSERVE Layer
-│   ├── Vision: YOLOv11n webcam inference + CLAHE preprocessing
-│   └── Vibration: MPU-6050 I2C @ 1500Hz + Butterworth filter
-├── DIAGNOSE Layer  
-│   └── Late-Fusion LSTM with Monte Carlo Dropout
-│       ├── Health Score (0-100)
-│       ├── Fault Classification (5 classes)
-│       └── Remaining Useful Life (hours)
-├── PRESCRIBE Layer
-│   └── FAISS retrieval + Llama-3-8B 4-bit generation
-│       ├── Risk Assessment
-│       ├── Repair Protocols
-│       └── Preventive Schedules
-└── DASHBOARD
-    └── Streamlit real-time 3-panel interface
-```
+3. **💊 Prescribe (RAG Repair Guidance)**
+   - Retrieval-Augmented Generation (RAG) powered by **FAISS** vector store and **Groq Llama-3.3-70B**.
+   - Generates exact step-by-step repair protocols based on motor condition and PDF manuals (`docs/motor_manual.pdf`).
 
-### System Flow
+4. **📊 Session History & Analytics**
+   - Save session runs directly into `data/history.json` with engine names, RPM, health scores, and timestamps.
+   - Interactive analytics dashboard showing fault distribution charts and health trend trajectories.
 
-```
-Webcam ────────────────┐
-  │ [CLAHE + YOLOv11n]   │
-  └────▶ Vision Features ─┐
-                         ├─▶ Late-Fusion LSTM ─▶ RAG Prescriber ─▶ Dashboard
-MPU-6050 ─────────────┐   │     (MC Dropout)       (FAISS+LLM)
-  │ [Butterworth BPF]    │   │
-  └────▶ Vib Features ──┘
-```
+---
 
-## 📁 Project Structure
+## 🚀 Apple Silicon Hardware Acceleration (32 GB RAM, 10-Core CPU/GPU)
+
+To take full advantage of Apple Silicon M-Series processors (10-core CPU/GPU + 32 GB Unified Memory), MotorGuard AI implements:
+
+1. **Streamlit Isolated Micro-Reruns (`@st.fragment`)**
+   - Wraps high-FPS live camera streams and Plotly graphs with `@st.fragment(run_every=0.1)`.
+   - Isolates updates to the active component without triggering full-page Streamlit re-renders.
+
+2. **Decoupled Background Threaded Camera (`ThreadedCamera`)**
+   - Runs a daemon thread worker continuously fetching OpenCV frames via native macOS `CAP_AVFOUNDATION`.
+   - Locks capture resolution to **1280x720 @ 30 FPS** with zero UI thread blocking or stuttering.
+
+3. **OpenCV Multi-Core CPU Parallelization**
+   - Configures `cv2.setUseOptimized(True)` and `cv2.setNumThreads(8)` to parallelize image matrix ops across Apple Silicon CPU cores.
+
+---
+
+## 🏗️ System Architecture
 
 ```
+┌─────────────────────────────────────────────────────────┐
+│                    MacBook (Host)                       │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │   Streamlit Frontend Dashboard (Port 8501)       │  │
+│  │   - Home | Simulation | Pipeline | History        │  │
+│  └──────────────────────────┬────────────────────────┘  │
+│                             │ HTTP / SSE                │
+└─────────────────────────────┼───────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────┐
+│                 Raspberry Pi 5 (Edge)                   │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │   Flask API Backend Server (Port 5000)            │  │
+│  │   - Dual-Stack IPv4/IPv6 (host='::')              │  │
+│  │   - MPU-6050 6-Axis Sensor I2C Stream            │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ⚡ Quick Start Guide
+
+### Step 1: Raspberry Pi Edge Setup
+
+1. **SSH into your Raspberry Pi**:
+   ```bash
+   ssh pi@rpi.local
+   ```
+2. **Clone & Start Dual-Stack Backend Server**:
+   ```bash
+   git clone https://github.com/nihaarikapv04-ship-it/Predictive-maintenance-via-Generative-Data-Augmentation.git ~/MotorGuard-AI
+   cd ~/MotorGuard-AI/backend
+   pip3 install flask flask-cors numpy scipy smbus2 --break-system-packages
+   python3 app.py
+   ```
+   *The server will start listening on port `5000` (`http://0.0.0.0:5000` / `http://[::]:5000`).*
+
+---
+
+### Step 2: MacBook Dashboard Launch
+
+1. **Open Terminal on MacBook**:
+   ```bash
+   cd "/Users/nihaarikapv/Downloads/Predictive-maintenance-via-Generative-Data-Augmentation-main"
+   source venv/bin/activate
+   PYTHONPATH=. streamlit run frontend/dashboard.py
+   ```
+2. **Connect to Raspberry Pi**:
+   - In the sidebar under **🔌 Raspberry Pi IP**, type `rpi.local` (or your Pi IP address).
+   - The indicator will immediately turn **🟢 Connected**.
+
+---
+
+## 🛠️ Project Structure
+
+```
+Predictive-maintenance-via-Generative-Data-Augmentation/
 ├── backend/
-│   ├── app.py                 # Flask API server (6 endpoints)
-│   ├── observe/
-│   │   ├── vision.py          # YOLOv11n + CLAHE visual inspection
-│   │   └── vibration.py       # MPU-6050 vibration sensing + DSP
-│   ├── diagnose/
-│   │   └── fusion.py          # Late-Fusion LSTM + MC Dropout
-│   └── prescribe/
-│       └── rag.py             # FAISS + Llama-3-8B RAG pipeline
+│   ├── app.py                 # Dual-stack Flask Edge API
+│   ├── observe/               # Vision & MPU-6050 vibration modules
+│   ├── diagnose/              # TimeGAN + LSTM late-fusion model
+│   └── prescribe/             # FAISS + Groq RAG motor manual engine
 ├── frontend/
-│   └── dashboard.py           # Streamlit dark-theme dashboard
-├── scripts/
-│   ├── setup_pi.sh            # Raspberry Pi setup automation
-│   └── start_system.sh        # System startup script
-├── requirements_pi.txt        # Raspberry Pi dependencies
-├── requirements_mac.txt       # macOS development dependencies
+│   ├── dashboard.py           # Main Streamlit shell & router
+│   ├── home_page.py           # Home landing page
+│   ├── simulation_page.py     # 3-tab Simulation Mode
+│   ├── pipeline_page.py       # Live Pipeline Mode with @st.fragment
+│   ├── history_page.py        # Analytics & session history log
+│   └── components/
+│       ├── camera.py          # ThreadedCamera (1280x720 @ 30 FPS)
+│       ├── vibration.py       # Plotly dark theme 6-channel charts
+│       ├── styles.py          # High-contrast CSS design tokens
+│       └── rag_display.py     # Prescriptive RAG markdown UI
+├── docs/                      # Motor manuals and PDF documentation
+├── data/                      # Session history & FAISS index storage
+├── .streamlit/
+│   └── config.toml            # Streamlit theme & performance config
 └── README.md
 ```
 
-## 🚀 Quick Start
+---
 
-### Option 1: Simulation Mode (No Hardware Required)
+## 🔧 Troubleshooting
 
-```bash
-# Clone the repository
-git clone https://github.com/nihaarikapv04-ship-it/Predictive-maintenance-via-Generative-Data-Augmentation.git
-cd Predictive-maintenance-via-Generative-Data-Augmentation
-
-# Install dependencies
-pip install -r requirements_mac.txt
-
-# Start the system in simulation mode
-bash scripts/start_system.sh
-
-# Or start components individually:
-# Terminal 1 - Backend
-SIMULATION_MODE=true python -m backend.app
-
-# Terminal 2 - Dashboard
-streamlit run frontend/dashboard.py
-```
-
-### Option 2: Raspberry Pi Deployment
-
-```bash
-# Run the setup script (requires sudo)
-sudo bash scripts/setup_pi.sh
-
-# Reboot to enable I2C
-sudo reboot
-
-# Verify MPU-6050 connection
-i2cdetect -y 1  # Should show device at address 0x68
-
-# Start the system
-SIMULATION_MODE=false bash scripts/start_system.sh
-```
-
-## 📊 Dashboard
-
-The dashboard features a professional dark-theme interface with three panels:
-
-| Panel | Function | Key Metrics |
-|-------|----------|-------------|
-| 🔍 **OBSERVE** | Visual Inspection | Fault class, confidence, bounding boxes |
-| 🩺 **DIAGNOSE** | Health Analytics | Health score, vibration graph, uncertainty |
-| 📝 **PRESCRIBE** | Repair Protocol | Risk level, ETF, repair steps, schedule |
-
-Features:
-- 🌙 Dark theme with glassmorphism design
-- 📱 Responsive 3-column layout
-- 📈 Real-time Plotly charts
-- ⏱️ Pipeline latency monitoring
-- 🔄 Start/Stop pipeline toggle
-- 📥 PDF report download
-- ⚠️ Simulation mode banner
-
-## 🔌 API Reference
-
-### Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | System health check |
-| `POST` | `/observe/vision` | Run visual fault detection |
-| `GET` | `/observe/vibration/stream` | Stream vibration data (SSE) |
-| `POST` | `/diagnose/fuse` | Run diagnostic fusion |
-| `POST` | `/prescribe/repair` | Generate repair prescription |
-| `POST` | `/pipeline/run` | Run full pipeline |
-
-### Example: Full Pipeline
-
-```bash
-curl -X POST http://localhost:5000/pipeline/run \
-  -H "Content-Type: application/json" \
-  -d '{"simulation": true}'
-```
-
-Response:
-```json
-{
-  "status": "ok",
-  "data": {
-    "observe": {
-      "vision": {"fault_class": "Inner Race Fault", "confidence": 0.87},
-      "vibration": {"severity": "moderate", "rms": 2.34}
-    },
-    "diagnose": {
-      "health_score": 62.5,
-      "uncertainty": 4.2,
-      "maintenance_urgency": "soon",
-      "rul_hours": 156.3
-    },
-    "prescribe": {
-      "risk_level": "MODERATE",
-      "etf_hours": 156.3,
-      "immediate_actions": ["Schedule bearing inspection within 48 hours"],
-      "repair_steps": 8
-    }
-  },
-  "latency_ms": 245.6
-}
-```
-
-## 🧠 Fault Classes
-
-| Class | Description | Color Code |
-|-------|-------------|------------|
-| Normal | Healthy motor operation | 🟢 Green |
-| Inner Race Fault | Bearing inner race damage | 🔴 Red |
-| Outer Race Fault | Bearing outer race damage | 🟠 Orange |
-| Ball Fault | Rolling element damage | 🟣 Purple |
-| Misalignment | Shaft misalignment | 🟣 Magenta |
-
-## 🛠️ Technology Stack
-
-- **Edge Computing**: Raspberry Pi 4B/5 with MPU-6050 accelerometer
-- **Computer Vision**: YOLOv11n (Ultralytics) with CLAHE preprocessing
-- **Signal Processing**: SciPy Butterworth bandpass filter (10-500Hz)
-- **Deep Learning**: PyTorch Late-Fusion LSTM with Monte Carlo Dropout
-- **Knowledge Retrieval**: FAISS vector store with sentence-transformers
-- **Language Model**: Llama-3-8B-Instruct with 4-bit quantization
-- **Backend**: Flask REST API with SSE streaming
-- **Frontend**: Streamlit with Plotly dark-theme visualizations
-- **Standards**: ISO 10816 vibration severity classification
-
-## 🧪 Simulation Mode
-
-The system includes a comprehensive simulation mode that generates:
-- **CWRU-style vibration data** with realistic fault signatures (BPFI, BPFO, BSF frequencies)
-- **Synthetic YOLO detections** with plausible confidence distributions
-- **Fluctuating health scores** that demonstrate degradation patterns
-- **Full RAG pipeline output** using rule-based fallback
-
-This allows complete system testing without any hardware.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-##  Acknowledgments
-
-- [CWRU Bearing Dataset](https://engineering.case.edu/bearingdatacenter) - Vibration data patterns
-- [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) - Object detection framework
-- [Meta Llama 3](https://llama.meta.com/) - Language model
-- [FAISS](https://github.com/facebookresearch/faiss) - Vector similarity search
+- **Camera permissions on macOS**: Ensure **Terminal** or **Python** has camera access enabled under `System Settings → Privacy & Security → Camera`.
+- **Pi Disconnected badge**: Verify `python3 app.py` is active on the Pi. If using dual-stack mDNS on macOS, enter `rpi.local` or the numeric IP from `hostname -I`.
+- **Button Visibility**: The dashboard uses explicit `#1A1A1A` dark charcoal button text on cyan gradient backgrounds for maximum contrast.
 
 ---
 
+## 📜 Citation & License
 
+Acceptance: **IEEE IRAI 2026** — *Physics-Aware Generative Maintenance with Edge Deployment*.

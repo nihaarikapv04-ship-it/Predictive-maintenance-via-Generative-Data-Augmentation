@@ -2,6 +2,7 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
+Optimized for Apple Silicon 10-core CPU/GPU + 32GB RAM via @st.fragment
 """
 import streamlit as st
 import numpy as np
@@ -62,6 +63,46 @@ def generate_sim_vibration():
     }
 
 
+@st.fragment(run_every=0.1)
+def render_live_camera_stream(cam_source: str, ip_url: str, res: str):
+    """Isolated @st.fragment for high-FPS live camera rendering without full page reruns."""
+    frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
+    if frame is not None:
+        weights = [0.30, 0.20, 0.18, 0.10, 0.07, 0.15]
+        cond = np.random.choice(CONDITIONS, p=weights)
+        lo = {
+            "Healthy Baseline": 0.80, "Mild Oxidation": 0.55,
+            "Moderate Corrosion": 0.50, "Severe Corrosion": 0.60,
+            "Structural Cracking": 0.55, "Contamination": 0.50,
+        }
+        hi = {
+            "Healthy Baseline": 0.99, "Mild Oxidation": 0.88,
+            "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92,
+            "Structural Cracking": 0.90, "Contamination": 0.82,
+        }
+        conf = round(np.random.uniform(lo[cond], hi[cond]), 3)
+
+        color_bgr = _BGR_COLORS.get(cond, (0, 255, 0))
+        annotated = draw_detection_overlay(frame, cond, conf, color_bgr)
+
+        st.session_state['pipe_fault_class'] = cond
+        st.session_state['pipe_confidence'] = conf
+
+        st.image(annotated, channels="RGB", use_container_width=True)
+
+        f_color = FAULT_COLORS.get(cond, "#ffffff")
+        status = "HEALTHY" if cond == "Healthy Baseline" else "FAULTY"
+        st.markdown(f"""
+        <div class='mg-card' style='border-left:5px solid {f_color}'>
+            <span class='badge-healthy' style='display:inline-block;'>{cond}</span>
+            <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.progress(conf, text=f"Confidence: {conf:.1%}")
+    else:
+        st.warning("⚠️ Camera not available — check System Settings → Privacy & Security → Camera → enable Terminal/Python")
+
+
 def render():
     st.markdown("<div class='panel-header'>⚡ Pipeline Mode — Live System</div>", unsafe_allow_html=True)
 
@@ -85,7 +126,7 @@ def render():
             fc = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
             hs_val = st.session_state.get('pipe_health_score', 85.0)
             conf_val = st.session_state.get('pipe_confidence', 0.85)
-            pi_ip_val = st.session_state.get('pi_ip', '192.168.1.100')
+            pi_ip_val = st.session_state.get('pi_ip', 'rpi.local')
             pi_connected = check_pi_connection(f"http://{pi_ip_val}:5000")
             risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
             etf_hours = max(10, hs_val * 10)
@@ -105,8 +146,8 @@ def render():
             st.success("✅ Session saved to history!")
     st.divider()
 
-    pi_ip = st.session_state.get('pi_ip', '192.168.1.100')
-    pi_url = f"http://{pi_ip}:5000" if ":" not in pi_ip else f"http://{pi_ip}"
+    pi_ip = st.session_state.get('pi_ip', 'rpi.local')
+    pi_url = f"http://{pi_ip}:5000" if ":" not in pi_ip and not pi_ip.startswith("[") else f"http://{pi_ip}"
     pi_connected = check_pi_connection(pi_url)
 
     tab_obs, tab_diag, tab_rx = st.tabs(["👁️ OBSERVE", "🩺 DIAGNOSE", "💊 PRESCRIBE"])
@@ -145,45 +186,8 @@ def render():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        camera_placeholder = st.empty()
-
         if pipe_running:
-            frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
-            if frame is not None:
-                weights = [0.30, 0.20, 0.18, 0.10, 0.07, 0.15]
-                cond = np.random.choice(CONDITIONS, p=weights)
-                lo = {
-                    "Healthy Baseline": 0.80, "Mild Oxidation": 0.55,
-                    "Moderate Corrosion": 0.50, "Severe Corrosion": 0.60,
-                    "Structural Cracking": 0.55, "Contamination": 0.50,
-                }
-                hi = {
-                    "Healthy Baseline": 0.99, "Mild Oxidation": 0.88,
-                    "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92,
-                    "Structural Cracking": 0.90, "Contamination": 0.82,
-                }
-                conf = round(np.random.uniform(lo[cond], hi[cond]), 3)
-
-                color_bgr = _BGR_COLORS.get(cond, (0, 255, 0))
-                annotated = draw_detection_overlay(frame, cond, conf, color_bgr)
-
-                st.session_state['pipe_fault_class'] = cond
-                st.session_state['pipe_confidence'] = conf
-
-                camera_placeholder.image(annotated, channels="RGB", use_column_width=True)
-
-                f_color = FAULT_COLORS.get(cond, "#ffffff")
-                status = "HEALTHY" if cond == "Healthy Baseline" else "FAULTY"
-                st.markdown(f"""
-                <div class='mg-card' style='border-left:5px solid {f_color}'>
-                    <span class='badge-healthy' style='display:inline-block;'>{cond}</span>
-                    <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL};
-                          font-weight:700'>{status}</span>
-                </div>
-                """, unsafe_allow_html=True)
-                st.progress(conf, text=f"Confidence: {conf:.1%}")
-            else:
-                camera_placeholder.warning("⚠️ Camera not available — check System Settings → Privacy & Security → Camera → enable Terminal/Python")
+            render_live_camera_stream(cam_source, ip_url, res)
         else:
             st.info("Toggle '▶️ Start Camera' above to begin live capture.")
 
@@ -294,8 +298,3 @@ def render():
             confidence=st.session_state.get('pipe_confidence', 0.0)
         )
         st.success("✅ Session saved to history")
-
-    # ═══════════════ AUTO-REFRESH ═══════════════
-    if st.session_state.get('pipe_toggle', False):
-        time.sleep(st.session_state.get('pipe_interval_sl', 1.0))
-        st.rerun()

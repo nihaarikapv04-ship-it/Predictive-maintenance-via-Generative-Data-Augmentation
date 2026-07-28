@@ -1,5 +1,6 @@
 """
 MotorGuard AI — Camera Component (Threaded & Decoupled 1280x720 @ 30 FPS)
+Optimized for Apple Silicon (M-Series 10-core CPU/GPU + 32GB Unified Memory)
 """
 import cv2
 import numpy as np
@@ -9,6 +10,10 @@ import time
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Enable OpenCV Multi-Core CPU Acceleration (Apple Silicon 10-core)
+cv2.setUseOptimized(True)
+cv2.setNumThreads(8)
 
 RESOLUTIONS = {
     "320x240":  (320, 240),

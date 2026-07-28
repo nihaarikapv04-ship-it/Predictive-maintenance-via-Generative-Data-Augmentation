@@ -33,7 +33,7 @@ defaults = {
     'pipe_fault_class': 'Healthy Baseline',
     'pipe_health_score': 85.0,
     'pipe_confidence': 0.0,
-    'pi_ip': '192.168.1.100',
+    'pi_ip': 'rpi.local',
     'pipeline_running': False,
     'camera_source': 'webcam',
 }
@@ -64,12 +64,22 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("**🔌 Raspberry Pi**")
-    pi_ip = st.text_input("IP Address", value=st.session_state.get('pi_ip', '192.168.1.100'), key="pi_ip_input_nav")
+    pi_ip = st.text_input("IP Address", value=st.session_state.get('pi_ip', 'rpi.local'), key="pi_ip_input_nav")
     st.session_state['pi_ip'] = pi_ip
     
     def check_pi(ip):
         try:
-            r = requests.get(f"http://{ip}:5000/health", timeout=2)
+            ip_str = ip.strip()
+            if not ip_str:
+                return False
+            if not ip_str.startswith("http://") and not ip_str.startswith("https://"):
+                if ":" in ip_str and not ip_str.startswith("["):
+                    url = f"http://{ip_str}/health"
+                else:
+                    url = f"http://{ip_str}:5000/health"
+            else:
+                url = f"{ip_str}/health"
+            r = requests.get(url, timeout=2)
             return r.status_code == 200
         except Exception:
             return False
@@ -84,12 +94,10 @@ with st.sidebar:
         st.markdown("""
         **On your Raspberry Pi:**
         ```bash
-        cd ~/MotorGuard-AI/backend
-        source venv/bin/activate
-        python app.py
+        python3 app.py
         ```
         **Find your Pi IP address:**
-        Run `hostname -I` on your Pi terminal.
+        Run `hostname -I` on your Pi terminal or enter `rpi.local`.
         """)
 
 page = st.session_state.get('page', 'home')
