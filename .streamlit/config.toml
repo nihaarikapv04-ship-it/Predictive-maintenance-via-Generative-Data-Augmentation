@@ -10,7 +10,6 @@ hideTopBar = false
 
 [server]
 headless = true
-fastReruns = true
 maxUploadSize = 200
 enableCORS = false
 enableXsrfProtection = false
@@ -18,8 +17,6 @@ fileWatcherType = "none"
 
 [runner]
 magicEnabled = false
-fastReruns = true
-enforcePageConfigRequests = false
 
 [browser]
 gatherUsageStats = false

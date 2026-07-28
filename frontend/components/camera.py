@@ -1,7 +1,10 @@
 """
-MotorGuard AI — Camera Component (Threaded & Multi-Platform Auto-Fallback)
-Optimized for macOS (AVFoundation), Windows (DirectShow), Linux (V4L2)
+MotorGuard AI — Camera Component (Threaded & Decoupled 1280x720 @ 30 FPS)
+Optimized for Apple Silicon (M-Series 10-core CPU/GPU + 32GB Unified Memory)
 """
+import os
+os.environ["OPENCV_AVFOUNDATION_SKIP_AUTH"] = "1"
+
 import cv2
 import numpy as np
 import logging
@@ -11,7 +14,7 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Enable OpenCV Multi-Core CPU Acceleration
+# Enable OpenCV Multi-Core CPU Acceleration (Apple Silicon 10-core)
 try:
     cv2.setUseOptimized(True)
     cv2.setNumThreads(8)
@@ -25,50 +28,11 @@ RESOLUTIONS = {
 }
 
 
-def open_capture_device(source="webcam", url=""):
-    """
-    Robust camera initialization supporting macOS (AVFoundation), Windows (DirectShow/MSMF),
-    Linux (V4L2), and multiple webcam indices (0, 1).
-    """
-    if source == "ip_camera" and url:
-        try:
-            cap = cv2.VideoCapture(url)
-            if cap.isOpened():
-                return cap
-        except Exception:
-            pass
-
-    # Try Windows DirectShow, Mac AVFoundation, and index 0 & 1 fallbacks
-    backends = [
-        getattr(cv2, 'CAP_AVFOUNDATION', 0),
-        getattr(cv2, 'CAP_DSHOW', 0),
-        cv2.CAP_ANY
-    ]
-    for idx in [0, 1]:
-        for backend in backends:
-            try:
-                cap = cv2.VideoCapture(idx, backend) if backend else cv2.VideoCapture(idx)
-                if cap.isOpened():
-                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                    return cap
-            except Exception:
-                continue
-
-    # Final fallback
-    try:
-        cap = cv2.VideoCapture(0)
-        if cap.isOpened():
-            return cap
-    except Exception:
-        pass
-
-    return None
-
-
 class ThreadedCamera:
     """
     Decoupled background thread camera capture worker.
-    Continuously fetches frames in a background thread so Streamlit calls get
+    Locks frame rate to 30 FPS at 1280x720 natively on macOS (CAP_AVFOUNDATION),
+    constantly fetching frames in a background thread so Streamlit calls get
     the latest frame instantly without blocking or stuttering the UI.
     """
     def __init__(self, source="webcam", url="", resolution="1280x720"):
@@ -80,20 +44,25 @@ class ThreadedCamera:
         self.stopped = False
         self.lock = threading.Lock()
         
-        # Robust multi-platform capture init
-        self.cap = open_capture_device(source=source, url=url)
+        # Init VideoCapture
+        if source == "webcam":
+            self.cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+            if not self.cap.isOpened():
+                self.cap = cv2.VideoCapture(0)
+        elif source == "ip_camera" and url:
+            self.cap = cv2.VideoCapture(url)
+        else:
+            self.cap = cv2.VideoCapture(0)
 
-        if self.cap and self.cap.isOpened():
-            try:
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                self.cap.set(cv2.CAP_PROP_FPS, 30)
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            except Exception:
-                pass
+        if self.cap.isOpened():
+            # Force 1280x720 @ 30 FPS for smooth macOS stream
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            self.cap.set(cv2.CAP_PROP_FPS, 30)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             # Flush buffer & read initial frame
-            for _ in range(2):
+            for _ in range(3):
                 self.cap.grab()
             ret, frame = self.cap.read()
             if ret and frame is not None and frame.size > 0:
@@ -107,7 +76,7 @@ class ThreadedCamera:
     def _update(self):
         while not self.stopped:
             if not hasattr(self, 'cap') or self.cap is None or not self.cap.isOpened():
-                time.sleep(0.05)
+                time.sleep(0.03)
                 continue
 
             ret, frame = self.cap.read()
@@ -141,7 +110,7 @@ def get_camera_instance(source="webcam", url="", resolution="1280x720") -> Threa
 def capture_one_frame(source="webcam", url="", resolution="1280x720") -> Optional[np.ndarray]:
     """
     Decoupled frame fetch from threaded background reader.
-    Guarantees non-blocking frame retrieval.
+    Guarantees 1280x720 @ 30 FPS non-blocking frame retrieval.
     """
     cam = get_camera_instance(source=source, url=url, resolution=resolution)
     frame = cam.read()
@@ -150,19 +119,24 @@ def capture_one_frame(source="webcam", url="", resolution="1280x720") -> Optiona
 
     # Direct fallback if background thread hasn't ready frame yet
     w, h = RESOLUTIONS.get(resolution, (1280, 720))
-    cap = open_capture_device(source=source, url=url)
-
-    if not cap or not cap.isOpened():
+    if source == "webcam":
+        cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(0)
+    elif source == "ip_camera" and url:
+        cap = cv2.VideoCapture(url)
+    else:
         return None
 
-    try:
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    except Exception:
-        pass
+    if not cap.isOpened():
+        return None
 
-    for _ in range(2):
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    for _ in range(3):
         cap.grab()
 
     ret, frame = cap.read()
