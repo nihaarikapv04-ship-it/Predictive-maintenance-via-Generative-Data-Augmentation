@@ -10,38 +10,124 @@
 
 ---
 
-## 🌟 Key Features & Capabilities
+## 📥 Required Downloads & Dependencies
 
-1. **👁️ Observe (Visual Fault Detection)**
-   - High-throughput **YOLOv11n** visual classification for 6 motor surface conditions (*Healthy Baseline*, *Mild Oxidation*, *Moderate Corrosion*, *Severe Corrosion*, *Structural Cracking*, *Contamination*).
-   - Real-time AVFoundation camera stream with bounding-box annotations and severity indicators.
+Before running MotorGuard AI, ensure you have the following prerequisites installed on your system.
 
-2. **🩺 Diagnose (Multi-Modal Late Fusion)**
-   - 6-axis **MPU-6050 vibration telemetry** (accelerometer + gyroscope) streamed at 1500Hz from Raspberry Pi 5.
-   - Physics-aware **TimeGAN + LSTM** fusion model calculating motor health score (0–100) and **Monte Carlo Dropout** uncertainty estimates (±%).
+### 💻 1. MacBook (Dashboard Host)
 
-3. **💊 Prescribe (RAG Repair Guidance)**
-   - Retrieval-Augmented Generation (RAG) powered by **FAISS** vector store and **Groq Llama-3.3-70B**.
-   - Generates exact step-by-step repair protocols based on motor condition and PDF manuals (`docs/motor_manual.pdf`).
+#### System Requirements:
+- **macOS**: 12.0+ (Apple Silicon M1/M2/M3/M4 or Intel)
+- **Python**: `Python 3.10` or higher
+- **Webcam**: Built-in FaceTime HD Camera or external USB webcam
 
-4. **📊 Session History & Analytics**
-   - Save session runs directly into `data/history.json` with engine names, RPM, health scores, and timestamps.
-   - Interactive analytics dashboard showing fault distribution charts and health trend trajectories.
+#### Download Packages List (`requirements.txt`):
+| Package | Version | Purpose |
+| :--- | :--- | :--- |
+| **`streamlit`** | `^1.37.0` | Main frontend dashboard framework |
+| **`watchdog`** | `^3.0.0` | macOS high-performance file watcher & auto-reloader |
+| **`opencv-python`** | `^4.8.0` | 1280x720 @ 30 FPS AVFoundation camera capture & CLAHE |
+| **`torch` & `torchvision`** | `^2.1.0` | Apple Silicon **MPS GPU Acceleration** for neural models |
+| **`ultralytics`** | `^8.1.0` | YOLOv11n 6-class visual motor fault classifier |
+| **`plotly`** | `^5.18.0` | Dark-theme 6-channel vibration plots & health gauges |
+| **`requests`** | `^2.31.0` | HTTP client for edge Raspberry Pi communication |
+| **`numpy` & `scipy`** | `^1.24.0` | Numerical calculations, FFT spectral analysis & EMA smoothing |
+| **`pandas`** | `^2.0.0` | DataFrame handling for session history analytics |
+| **`faiss-cpu` & `groq`** | `^1.7.4` | Vector store & Groq Llama-3.3-70B RAG repair manual engine |
+
+#### 📥 Single Command Download for MacBook:
+```bash
+pip install -r requirements.txt
+```
 
 ---
 
-## 🚀  Hardware Acceleration 
+### 🔌 2. Raspberry Pi 5 (Edge Sensor API)
 
-1. **Streamlit Isolated Micro-Reruns (`@st.fragment`)**
-   - Wraps high-FPS live camera streams and Plotly graphs with `@st.fragment(run_every=0.1)`.
+#### System Requirements:
+- **OS**: Raspberry Pi OS (Debian 12 Bookworm)
+- **Python**: `Python 3.10+`
+- **Sensor**: **MPU-6050 6-Axis Accelerometer + Gyroscope** over I2C
+
+#### Download Packages List (`requirements_pi.txt`):
+| Package | Version | Purpose |
+| :--- | :--- | :--- |
+| **`flask`** | `^3.0.0` | Lightweight REST API server on port 5000 |
+| **`flask-cors`** | `^4.0.0` | Cross-Origin Resource Sharing for dashboard calls |
+| **`numpy`** | `^1.24.0` | Synthetic vibration signal generation |
+| **`scipy`** | `^1.10.0` | Butterworth filtering & signal processing |
+| **`smbus2`** | `^0.4.2` | I2C bus reader for MPU-6050 physical hardware |
+
+#### 📥 Single Command Download for Raspberry Pi:
+```bash
+pip3 install flask flask-cors numpy scipy smbus2 --break-system-packages
+```
+
+---
+
+## ⚡ Step-by-Step Installation & Setup
+
+### 🔴 Step A: Raspberry Pi 5 Setup (Edge API)
+
+1. **SSH into your Raspberry Pi**:
+   ```bash
+   ssh pi@rpi.local
+   ```
+2. **Clone Repository & Download Dependencies**:
+   ```bash
+   git clone https://github.com/nihaarikapv04-ship-it/Predictive-maintenance-via-Generative-Data-Augmentation.git ~/MotorGuard-AI
+   cd ~/MotorGuard-AI/backend
+   pip3 install flask flask-cors numpy scipy smbus2 --break-system-packages
+   ```
+3. **Start Dual-Stack (IPv4 + IPv6) Backend Server**:
+   ```bash
+   python3 app.py
+   ```
+   *The server will start listening on port `5000` (`http://0.0.0.0:5000` / `http://[::]:5000`).*
+
+---
+
+### 🔵 Step B: MacBook Dashboard Setup (Frontend)
+
+1. **Open Terminal on MacBook**:
+   ```bash
+   cd "/Users/nihaarikapv/Downloads/Predictive-maintenance-via-Generative-Data-Augmentation-main"
+   ```
+2. **Activate Virtual Environment & Install Required Packages**:
+   ```bash
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. **Launch Dashboard**:
+   ```bash
+   PYTHONPATH=. streamlit run frontend/dashboard.py
+   ```
+   *(Your browser will open automatically at `http://localhost:8501`)*
+
+4. **Connect to Raspberry Pi**:
+   - In the sidebar under **🔌 Raspberry Pi IP**, type `rpi.local` (or your Pi IP address).
+   - Press **Enter**. The indicator will turn **🟢 Connected**.
+
+---
+
+## 🚀 Apple Silicon Hardware Acceleration (32 GB RAM, 10-Core CPU/GPU)
+
+To take full advantage of Apple Silicon M-Series processors (10-core CPU/GPU + 32 GB Unified Memory), MotorGuard AI implements:
+
+1. **Streamlit Component Micro-Reruns (`@st.fragment`)**
+   - Wraps high-FPS live camera streams and Plotly graphs with `@st.fragment(run_every=0.5)`.
    - Isolates updates to the active component without triggering full-page Streamlit re-renders.
 
 2. **Decoupled Background Threaded Camera (`ThreadedCamera`)**
    - Runs a daemon thread worker continuously fetching OpenCV frames via native macOS `CAP_AVFOUNDATION`.
    - Locks capture resolution to **1280x720 @ 30 FPS** with zero UI thread blocking or stuttering.
 
-3. **OpenCV Multi-Core CPU Parallelization**
-   - Configures `cv2.setUseOptimized(True)` and `cv2.setNumThreads(8)` to parallelize image matrix ops across CPU cores.
+3. **PyTorch Apple Metal GPU Acceleration (MPS)**
+   - PyTorch automatically detects your **10-core M-Series GPU** using `torch.backends.mps.is_available()`.
+   - All YOLOv11 tensor operations are offloaded directly to your GPU.
+
+4. **Temporal Stability Engine**
+   - Holds detected conditions steady for **3.0 seconds** with Exponential Moving Average (EMA) confidence smoothing so humans can comfortably read, observe, and diagnose motor health.
 
 ---
 
@@ -69,73 +155,12 @@
 
 ---
 
-## ⚡ Quick Start Guide
-
-### Step 1: Raspberry Pi Edge Setup
-
-1. **SSH into your Raspberry Pi**:
-   ```bash
-   ssh pi@rpi.local
-   ```
-2. **Clone & Start Dual-Stack Backend Server**:
-   ```bash
-   git clone https://github.com/nihaarikapv04-ship-it/Predictive-maintenance-via-Generative-Data-Augmentation.git ~/MotorGuard-AI
-   cd ~/MotorGuard-AI/backend
-   pip3 install flask flask-cors numpy scipy smbus2 --break-system-packages
-   python3 app.py
-   ```
-   *The server will start listening on port `5000` (`http://0.0.0.0:5000` / `http://[::]:5000`).*
-
----
-
-### Step 2: MacBook Dashboard Launch
-
-1. **Open Terminal on MacBook**:
-   ```bash
-   cd "/Users/nihaarikapv/Downloads/Predictive-maintenance-via-Generative-Data-Augmentation-main"
-   source venv/bin/activate
-   PYTHONPATH=. streamlit run frontend/dashboard.py
-   ```
-2. **Connect to Raspberry Pi**:
-   - In the sidebar under **🔌 Raspberry Pi IP**, type `rpi.local` (or your Pi IP address).
-   - The indicator will immediately turn **🟢 Connected**.
-
----
-
-## 🛠️ Project Structure
-
-```
-Predictive-maintenance-via-Generative-Data-Augmentation/
-├── backend/
-│   ├── app.py                 # Dual-stack Flask Edge API
-│   ├── observe/               # Vision & MPU-6050 vibration modules
-│   ├── diagnose/              # TimeGAN + LSTM late-fusion model
-│   └── prescribe/             # FAISS + Groq RAG motor manual engine
-├── frontend/
-│   ├── dashboard.py           # Main Streamlit shell & router
-│   ├── home_page.py           # Home landing page
-│   ├── simulation_page.py     # 3-tab Simulation Mode
-│   ├── pipeline_page.py       # Live Pipeline Mode with @st.fragment
-│   ├── history_page.py        # Analytics & session history log
-│   └── components/
-│       ├── camera.py          # ThreadedCamera (1280x720 @ 30 FPS)
-│       ├── vibration.py       # Plotly dark theme 6-channel charts
-│       ├── styles.py          # High-contrast CSS design tokens
-│       └── rag_display.py     # Prescriptive RAG markdown UI
-├── docs/                      # Motor manuals and PDF documentation
-├── data/                      # Session history & FAISS index storage
-├── .streamlit/
-│   └── config.toml            # Streamlit theme & performance config
-└── README.md
-```
-
----
-
 ## 🔧 Troubleshooting
 
+- **Event loop closed error (Python 3.14)**: `.streamlit/config.toml` includes `fileWatcherType = "none"`, permanently resolving watchdog thread conflicts.
 - **Camera permissions on macOS**: Ensure **Terminal** or **Python** has camera access enabled under `System Settings → Privacy & Security → Camera`.
-- **Pi Disconnected badge**: Verify `python3 app.py` is active on the Pi. If using dual-stack mDNS on macOS, enter `rpi.local` or the numeric IP from `hostname -I`.
-- **Button Visibility**: The dashboard uses explicit `#1A1A1A` dark charcoal button text on cyan gradient backgrounds for maximum contrast.
+- **Pi Disconnected badge**: Verify `python3 app.py` is active on the Pi. Enter `rpi.local` or the numeric IP from `hostname -I`.
+- **Button Visibility**: Uses explicit `#1A1A1A` dark charcoal button text on cyan gradient backgrounds for high contrast.
 
 ---
 
