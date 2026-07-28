@@ -2,7 +2,7 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
-Buttery smooth video feed + realistic 5.0s diagnostic hold & hardware power-off.
+High performance, lag-free UI rendering with manual session saving.
 """
 import streamlit as st
 import numpy as np
@@ -36,7 +36,7 @@ _BGR_COLORS = {
 
 def check_pi_connection(url: str) -> bool:
     try:
-        r = requests.get(f"{url}/health", timeout=2)
+        r = requests.get(f"{url}/health", timeout=1.0)
         return r.status_code == 200
     except Exception:
         return False
@@ -44,7 +44,7 @@ def check_pi_connection(url: str) -> bool:
 
 def get_pi_vibration(url: str):
     try:
-        r = requests.get(f"{url}/observe/vibration/stream", timeout=3)
+        r = requests.get(f"{url}/observe/vibration/stream", timeout=1.0)
         return r.json()
     except Exception:
         return None
@@ -236,8 +236,8 @@ def render():
             st.session_state['pipe_vib_history'] = []
         
         st.session_state['pipe_vib_history'].append(vib_sample)
-        if len(st.session_state['pipe_vib_history']) > 100:
-            st.session_state['pipe_vib_history'] = st.session_state['pipe_vib_history'][-100:]
+        if len(st.session_state['pipe_vib_history']) > 50:
+            st.session_state['pipe_vib_history'] = st.session_state['pipe_vib_history'][-50:]
 
         fig_vib = create_vibration_plot(st.session_state['pipe_vib_history'], height=350)
         st.plotly_chart(fig_vib, use_container_width=True, key="pipe_vib_chart")
@@ -302,20 +302,3 @@ def render():
             health_score=hs_val,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
-
-        risk_level = "CRITICAL" if hs_val < 40 else ("HIGH" if hs_val < 60 else ("MODERATE" if hs_val < 80 else "LOW"))
-        etf_hours = max(10, hs_val * 10)
-        prescription_text = f"Motor Condition: {fc}. Risk: {risk_level}. Recommended repair protocol generated."
-
-        save_session(
-            fault_class=fc,
-            health_score=hs_val,
-            risk_level=risk_level,
-            etf_hours=etf_hours,
-            prescription=prescription_text,
-            mode='Pipeline',
-            pi_connected=pi_connected,
-            engine_name=st.session_state.get('engine_name', 'Unknown Motor'),
-            confidence=st.session_state.get('pipe_confidence', 0.0)
-        )
-        st.success("✅ Session saved to history")
