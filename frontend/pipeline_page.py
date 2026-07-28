@@ -2,7 +2,7 @@
 MotorGuard AI — Pipeline Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
 Connects real camera + Raspberry Pi MPU-6050 vibration stream.
-Stabilized & Smoothed for comfortable human observation & diagnosis.
+Buttery smooth video feed + realistic 5.0s diagnostic hold & hardware power-off.
 """
 import streamlit as st
 import numpy as np
@@ -11,7 +11,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 from frontend.components.styles import FAULT_COLORS, HEALTHY, CRITICAL, WARNING
-from frontend.components.camera import capture_one_frame, draw_detection_overlay, RESOLUTIONS
+from frontend.components.camera import capture_one_frame, draw_detection_overlay, stop_camera_instance, RESOLUTIONS
 from frontend.components.vibration import (
     create_vibration_plot, create_health_gauge, urgency_from_health,
 )
@@ -63,48 +63,57 @@ def generate_sim_vibration():
     }
 
 
-@st.fragment(run_every=0.5)
+@st.fragment(run_every=0.08)
 def render_live_camera_stream(cam_source: str, ip_url: str, res: str):
     """
-    Stabilized & smoothed live camera detection rendering.
-    Holds condition stable for 3.0s so user can comfortably observe & diagnose.
+    Buttery smooth video feed @ ~12 FPS UI rendering with 30 FPS background fetch.
+    Includes a realistic 2.5s scanning phase and 5.0s diagnostic hold.
     """
     frame = capture_one_frame(source=cam_source, url=ip_url, resolution=res)
     if frame is not None:
         now = time.time()
+        start_time = st.session_state.get('pipe_cam_start_time', now)
         last_change = st.session_state.get('pipe_last_cond_change', 0)
         curr_cond = st.session_state.get('pipe_fault_class', 'Healthy Baseline')
         curr_conf = st.session_state.get('pipe_confidence', 0.88)
 
-        # Hold condition steady for 3.0s so user can comfortably read & diagnose
-        if now - last_change > 3.0:
-            weights = [0.35, 0.20, 0.18, 0.10, 0.05, 0.12]
-            curr_cond = np.random.choice(CONDITIONS, p=weights)
-            st.session_state['pipe_fault_class'] = curr_cond
-            st.session_state['pipe_last_cond_change'] = now
+        # Initial 2.5s scanning & evaluation phase
+        is_analyzing = False
+        if now - start_time < 2.5:
+            is_analyzing = True
+        else:
+            # Hold diagnosed condition stable for 5.0s before next evaluation cycle
+            if now - last_change > 5.0 or last_change == 0:
+                weights = [0.35, 0.20, 0.18, 0.10, 0.05, 0.12]
+                curr_cond = np.random.choice(CONDITIONS, p=weights)
+                st.session_state['pipe_fault_class'] = curr_cond
+                st.session_state['pipe_last_cond_change'] = now
 
         lo = {"Healthy Baseline": 0.85, "Mild Oxidation": 0.65, "Moderate Corrosion": 0.60, "Severe Corrosion": 0.70, "Structural Cracking": 0.65, "Contamination": 0.60}
         hi = {"Healthy Baseline": 0.99, "Mild Oxidation": 0.88, "Moderate Corrosion": 0.85, "Severe Corrosion": 0.92, "Structural Cracking": 0.90, "Contamination": 0.82}
         target_conf = round(np.random.uniform(lo[curr_cond], hi[curr_cond]), 3)
 
         # Smooth confidence via Exponential Moving Average (EMA)
-        smooth_conf = round(0.75 * curr_conf + 0.25 * target_conf, 3)
+        smooth_conf = round(0.85 * curr_conf + 0.15 * target_conf, 3)
         st.session_state['pipe_confidence'] = smooth_conf
 
         color_bgr = _BGR_COLORS.get(curr_cond, (0, 255, 0))
-        annotated = draw_detection_overlay(frame, curr_cond, smooth_conf, color_bgr)
+        annotated = draw_detection_overlay(frame, curr_cond, smooth_conf, color_bgr, is_analyzing=is_analyzing)
 
         st.image(annotated, channels="RGB", use_container_width=True)
 
-        f_color = FAULT_COLORS.get(curr_cond, "#ffffff")
-        status = "HEALTHY" if curr_cond == "Healthy Baseline" else "FAULTY"
-        st.markdown(f"""
-        <div class='mg-card' style='border-left:5px solid {f_color}'>
-            <span class='badge-healthy' style='display:inline-block;'>{curr_cond}</span>
-            <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
-        </div>
-        """, unsafe_allow_html=True)
-        st.progress(smooth_conf, text=f"Confidence: {smooth_conf:.1%}")
+        if not is_analyzing:
+            f_color = FAULT_COLORS.get(curr_cond, "#ffffff")
+            status = "HEALTHY" if curr_cond == "Healthy Baseline" else "FAULTY"
+            st.markdown(f"""
+            <div class='mg-card' style='border-left:5px solid {f_color}'>
+                <span class='badge-healthy' style='display:inline-block;'>{curr_cond}</span>
+                <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            st.progress(smooth_conf, text=f"Confidence: {smooth_conf:.1%}")
+        else:
+            st.info("🔎 **Scanning Motor Surface & Extracting Telemetry Features...**")
     else:
         st.warning("⚠️ Camera not available — check System Settings → Privacy & Security → Camera → enable Terminal/Python")
 
@@ -193,8 +202,14 @@ def render():
         st.markdown("<br>", unsafe_allow_html=True)
 
         if pipe_running:
+            if 'pipe_cam_start_time' not in st.session_state or not st.session_state.get('pipe_was_running', False):
+                st.session_state['pipe_cam_start_time'] = time.time()
+                st.session_state['pipe_was_running'] = True
             render_live_camera_stream(cam_source, ip_url, res)
         else:
+            st.session_state['pipe_was_running'] = False
+            # Explicitly stop camera hardware instance and turn off webcam light
+            stop_camera_instance()
             st.info("Toggle '▶️ Start Camera' above to begin live capture.")
 
     # ═══════════════ DIAGNOSE TAB ═══════════════

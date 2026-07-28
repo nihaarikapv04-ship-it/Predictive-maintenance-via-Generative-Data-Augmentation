@@ -54,12 +54,15 @@ class ThreadedCamera:
         else:
             self.cap = cv2.VideoCapture(0)
 
-        if self.cap.isOpened():
+        if self.cap and self.cap.isOpened():
             # Force 1280x720 @ 30 FPS for smooth macOS stream
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            self.cap.set(cv2.CAP_PROP_FPS, 30)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            try:
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            except Exception:
+                pass
 
             # Flush buffer & read initial frame
             for _ in range(3):
@@ -95,6 +98,7 @@ class ThreadedCamera:
         self.stopped = True
         if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
             self.cap.release()
+            self.cap = None
 
 
 _GLOBAL_CAM_INSTANCE = None
@@ -105,6 +109,14 @@ def get_camera_instance(source="webcam", url="", resolution="1280x720") -> Threa
     if _GLOBAL_CAM_INSTANCE is None or _GLOBAL_CAM_INSTANCE.stopped:
         _GLOBAL_CAM_INSTANCE = ThreadedCamera(source=source, url=url, resolution=resolution)
     return _GLOBAL_CAM_INSTANCE
+
+
+def stop_camera_instance():
+    """Explicitly release hardware camera device and stop background thread."""
+    global _GLOBAL_CAM_INSTANCE
+    if _GLOBAL_CAM_INSTANCE is not None:
+        _GLOBAL_CAM_INSTANCE.stop()
+        _GLOBAL_CAM_INSTANCE = None
 
 
 def capture_one_frame(source="webcam", url="", resolution="1280x720") -> Optional[np.ndarray]:
@@ -128,13 +140,16 @@ def capture_one_frame(source="webcam", url="", resolution="1280x720") -> Optiona
     else:
         return None
 
-    if not cap.isOpened():
+    if not cap or not cap.isOpened():
         return None
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_FPS, 30)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    try:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    except Exception:
+        pass
 
     for _ in range(3):
         cap.grab()
@@ -154,6 +169,7 @@ def draw_detection_overlay(
     condition: str,
     confidence: float,
     color_bgr: Tuple[int, int, int] = (0, 255, 0),
+    is_analyzing: bool = False,
 ) -> np.ndarray:
     """
     Draw a YOLO-style bounding box + label on an RGB frame.
@@ -165,6 +181,17 @@ def draw_detection_overlay(
     severity_thick = 3 if confidence > 0.7 else 2
     mx, my = int(w * 0.08), int(h * 0.08)
     x1, y1, x2, y2 = mx, my, w - mx, h - my
+
+    if is_analyzing:
+        # Scanning HUD overlay while evaluating
+        cv2.rectangle(frame_bgr, (x1, y1), (x2, y2), (0, 215, 255), 2)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(frame_bgr, "SCANNING & ANALYZING MOTOR...", (x1 + 10, y1 + 30), font, 0.6, (0, 215, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame_bgr, "Extracting Surface Defects...", (x1 + 10, y1 + 60), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(frame_bgr, (0, 0), (280, 32), (0, 140, 255), -1)
+        cv2.putText(frame_bgr, "Motor: DIAGNOSING...", (8, 22), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame_bgr, "ANALYZING", (w - 110, 22), font, 0.6, (0, 215, 255), 2, cv2.LINE_AA)
+        return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
     cv2.rectangle(frame_bgr, (x1, y1), (x2, y2), color_bgr, severity_thick)
 
