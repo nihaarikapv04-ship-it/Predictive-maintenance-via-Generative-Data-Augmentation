@@ -224,6 +224,6 @@ Predictive-maintenance-via-Generative-Data-Augmentation/
 
 ## 📜 Citation & License
 
-Accepted for publication at **IEEE IRAI 2026**: *Physics-Aware Generative Maintenance with Edge Deployment*.
+Accepted for publication at **IEEE IRAI 2026**: Motorguard AI *Physics-Aware Generative Maintenance with Edge Deployment*.
 
-Distributed under the [MIT License](LICENSE).
+
