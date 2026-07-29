@@ -1,5 +1,6 @@
 """
 MotorGuard AI — Global CSS Design System
+Enterprise Industrial Theme for Apple Silicon & Edge Deployment
 """
 import streamlit as st
 
@@ -24,36 +25,82 @@ def inject_css():
         color: #e8eaf6 !important;
     }
     
-    /* Sidebar */
+    /* Sidebar Layout */
     section[data-testid="stSidebar"] {
-        background: #161b27 !important;
-        border-right: 1px solid #2d3348 !important;
-        padding-top: 0;
+        background: #121622 !important;
+        border-right: 1px solid #23293a !important;
+        padding-top: 10px;
         display: block !important;
         visibility: visible !important;
     }
     section[data-testid="stSidebar"] * {
         color: #ccd6f6 !important;
     }
-    section[data-testid="stSidebar"] .stButton > button {
-        background: transparent !important;
-        color: #ccd6f6 !important;
-        border: none !important;
-        width: 100% !important;
-        text-align: left !important;
-        padding: 12px 20px !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        border-radius: 6px !important;
-        margin-bottom: 4px !important;
+    
+    .sidebar-logo {
+        padding: 12px 14px 18px 14px;
+        border-bottom: 1px solid #23293a;
+        margin-bottom: 18px;
     }
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: #2d3348 !important;
+    .sidebar-logo-text {
+        font-size: 1.25rem;
+        font-weight: 700;
         color: #00d4ff !important;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sidebar-logo-sub {
+        font-size: 0.75rem;
+        color: #8892b0 !important;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 500;
     }
 
-    /* GENERAL BUTTON STYLING */
-    .stButton > button {
+    /* INACTIVE SIDEBAR BUTTONS */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: transparent !important;
+        color: #a8b2d8 !important;
+        border: 1px solid transparent !important;
+        width: 100% !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        padding: 11px 16px !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        margin-bottom: 6px !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: #1e2536 !important;
+        color: #00d4ff !important;
+        border-color: rgba(0, 212, 255, 0.2) !important;
+        transform: translateX(2px);
+    }
+
+    /* ACTIVE HIGHLIGHT SIDEBAR BUTTONS */
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"],
+    section[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
+        background: linear-gradient(90deg, rgba(0, 212, 255, 0.18) 0%, rgba(0, 212, 255, 0.04) 100%) !important;
+        color: #00d4ff !important;
+        border-left: 4px solid #00d4ff !important;
+        border-top: 1px solid rgba(0, 212, 255, 0.25) !important;
+        border-right: 1px solid rgba(0, 212, 255, 0.25) !important;
+        border-bottom: 1px solid rgba(0, 212, 255, 0.25) !important;
+        font-weight: 700 !important;
+        box-shadow: 0 2px 12px rgba(0, 212, 255, 0.15) !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        padding-left: 14px !important;
+        border-radius: 0 8px 8px 0 !important;
+    }
+
+    /* GENERAL MAIN PAGE BUTTON STYLING */
+    .main .stButton > button {
         background: #161b27 !important;
         color: #00d4ff !important;
         border: 1px solid #00d4ff !important;
@@ -64,39 +111,21 @@ def inject_css():
         letter-spacing: 0.5px !important;
         transition: all 0.2s ease !important;
     }
-    .stButton > button:hover {
+    .main .stButton > button:hover {
         background: #00d4ff !important;
-        color: #1A1A1A !important;  /* High-contrast dark charcoal text */
+        color: #1A1A1A !important;
         border-color: #00d4ff !important;
         box-shadow: 0 4px 14px rgba(0, 212, 255, 0.35) !important;
     }
 
-    /* PRIMARY BUTTONS ('Enter Simulation Mode', 'Enter Pipeline Mode') */
-    .stButton > button[kind="primary"], button[data-testid="baseButton-primary"] {
+    /* PRIMARY MAIN PAGE BUTTONS */
+    .main .stButton > button[kind="primary"], .main button[data-testid="baseButton-primary"] {
         background: linear-gradient(135deg, #00d4ff 0%, #00a3cc 100%) !important;
-        color: #1A1A1A !important;  /* Dark charcoal text on bright cyan background */
+        color: #1A1A1A !important;
         border: none !important;
         font-weight: 700 !important;
     }
-    .stButton > button[kind="primary"]:hover, button[data-testid="baseButton-primary"]:hover {
-        background: linear-gradient(135deg, #33ddff 0%, #00b8e6 100%) !important;
-        color: #1A1A1A !important;
-        box-shadow: 0 6px 20px rgba(0, 212, 255, 0.45) !important;
-    }
 
-    /* SECONDARY BUTTONS ('Save Session', etc.) */
-    .stButton > button[kind="secondary"], button[data-testid="baseButton-secondary"] {
-        background: #1e2535 !important;
-        color: #e8eaf6 !important;
-        border: 1px solid #3d4663 !important;
-        font-weight: 600 !important;
-    }
-    .stButton > button[kind="secondary"]:hover, button[data-testid="baseButton-secondary"]:hover {
-        background: #2d3348 !important;
-        color: #00d4ff !important;
-        border-color: #00d4ff !important;
-    }
-    
     /* Cards */
     .mg-card {
         background: #161b27 !important;
@@ -173,36 +202,6 @@ def inject_css():
         font-weight: 700 !important;
         letter-spacing: 1px;
     }
-    .badge-critical {
-        background: rgba(255, 68, 68, 0.3) !important;
-        color: #ffffff !important;
-        border: 1px solid #ff4444 !important;
-        padding: 6px 16px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-weight: 700 !important;
-        letter-spacing: 1.5px;
-    }
-    .badge-moderate {
-        background: rgba(255, 170, 0, 0.3) !important;
-        color: #ffffff !important;
-        border: 1px solid #ffaa00 !important;
-        padding: 6px 16px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-weight: 700 !important;
-        letter-spacing: 1.5px;
-    }
-    .badge-low {
-        background: rgba(0, 255, 136, 0.3) !important;
-        color: #ffffff !important;
-        border: 1px solid #00ff88 !important;
-        padding: 6px 16px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-weight: 700 !important;
-        letter-spacing: 1.5px;
-    }
     
     /* Metric display */
     [data-testid="stMetricLabel"] {
@@ -215,7 +214,7 @@ def inject_css():
         font-weight: 700 !important;
     }
     
-    /* Tabs: unselected #a8b2d8, selected #00d4ff */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         background: #161b27 !important;
         border-radius: 10px;
@@ -237,7 +236,7 @@ def inject_css():
         font-weight: 700 !important;
     }
     
-    /* ALL input fields: background #1e2535, text #e8eaf6, border #3d4663 */
+    /* ALL input fields */
     .stTextInput input, .stNumberInput input, .stSelectbox > div > div {
         background: #1e2535 !important;
         border: 1px solid #3d4663 !important;
@@ -245,7 +244,7 @@ def inject_css():
         border-radius: 8px !important;
     }
     
-    /* History table styling */
+    /* History table */
     .stDataFrame {
         border: 1px solid #2d3348 !important;
         border-radius: 10px !important;
@@ -257,19 +256,8 @@ def inject_css():
         color: #e8eaf6 !important;
         font-weight: 600 !important;
     }
-    .stDataFrame [data-testid="stTable"] tr {
-        background: #161b27 !important;
-        color: #e8eaf6 !important;
-    }
-    .stDataFrame [data-testid="stTable"] tr:nth-child(even) {
-        background: #1a2040 !important;
-    }
     
-    /* Divider */
     hr { border-color: #2d3348 !important; }
-    
-    /* Columns spacing */
-    div[data-testid="column"] { padding: 0 10px; }
     
     .main .block-container {
         max-width: 100%;

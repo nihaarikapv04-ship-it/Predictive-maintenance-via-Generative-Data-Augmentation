@@ -57,8 +57,11 @@ with st.sidebar:
         'history': '📊  History',
     }
     
+    current_page = st.session_state.get('page', 'home')
     for key, label in pages.items():
-        if st.button(label, key=f"nav_{key}", use_container_width=True):
+        is_active = (current_page == key)
+        b_type = "primary" if is_active else "secondary"
+        if st.button(label, key=f"nav_{key}", type=b_type, use_container_width=True):
             if key != 'pipeline':
                 stop_camera_instance()
             st.session_state['page'] = key

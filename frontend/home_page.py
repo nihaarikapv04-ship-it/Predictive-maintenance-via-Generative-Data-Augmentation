@@ -53,47 +53,44 @@ def render():
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    # 📖 Simulation Parameters & Beginner's Guide
-    with st.expander("📖 Simulation & Pipeline Parameters Guide (Simple Sentences)", expanded=True):
+    # 📖 System Parameters & Diagnostic Reference
+    with st.expander("📖 System Parameters & Diagnostic Reference", expanded=True):
         st.markdown("""
-        ### What Each Parameter Means & How It Works:
+        ### Industrial Parameter Specifications:
 
-        1. **🏷️ Motor / Engine Name**:
-           - *What it is*: The name or model number of your motor (e.g., *Kirloskar 3-Phase*, *Jewel 0.5HP*).
-           - *Why it matters*: Identifies which machine is being inspected so history logs stay organized.
+        1. **🏷️ Motor / Engine Designation**:
+           - Unique equipment identifier and manufacturer model specification (*e.g., Kirloskar 3-Phase, Jewel 0.5HP*).
+           - Maintains traceability across historical maintenance records.
 
-        2. **⚡ RPM (Rotations Per Minute)**:
-           - *What it is*: How many complete 360° spins the motor shaft completes in 1 minute (e.g., *1440 RPM*).
-           - *Why it matters*: Higher RPMs naturally create higher vibration frequencies and heat.
+        2. **⚡ Shaft Rotations Per Minute (RPM)**:
+           - Rotational frequency of the primary motor shaft (*e.g., 1440 RPM for standard 4-pole induction motor*).
+           - Baseline for establishing fundamental rotational frequencies ($f_r$).
 
-        3. **👁️ Motor Surface Conditions (The 6 Defect Classes)**:
-           - 🟢 **Healthy Baseline**: The motor housing is clean and free of damage.
-           - 🟡 **Mild Oxidation**: Slight surface discoloration or early light rust spots.
-           - 🟧 **Moderate Corrosion**: Spreading rust patches that require cleaning and protective coating.
-           - 🔴 **Severe Corrosion**: Heavy rust scaling threatening the strength of the motor casing.
-           - 🔴 **Structural Cracking**: Visible fractures or hairline cracks in the metal housing.
-           - 🟣 **Contamination**: Accumulation of oil leaks, heavy dust, or foreign chemicals on the motor.
+        3. **👁️ Surface Defect Classifications (YOLOv11 Visual Path)**:
+           - 🟢 **Healthy Baseline**: Clean housing, nominal surface integrity without defects.
+           - 🟡 **Mild Oxidation**: Surface discoloration or early-stage oxidative films.
+           - 🟧 **Moderate Corrosion**: Localized rust scaling requiring abrasive cleaning and protective sealants.
+           - 🔴 **Severe Corrosion**: Advanced oxide penetration compromising structural casing thickness.
+           - 🔴 **Structural Cracking**: Physical fractures or mechanical housing cracks.
+           - 🟣 **Contamination**: Foreign material accumulation, oil leakage, or particulate deposits.
 
-        4. **🎯 Confidence Score (%)**:
-           - *What it is*: How sure the AI vision model (YOLOv11) is about its defect detection (e.g., *88% Confidence*).
+        4. **🎯 Detection Confidence Index (%)**:
+           - Softmax probability associated with the primary YOLOv11 visual bounding box.
 
-        5. **〰️ Vibration Amplitude (g)**:
-           - *What it is*: How hard the motor is shaking, measured in G-force acceleration.
-           - *Simple meaning*: Low shaking (below 1.0g) is normal; heavy shaking (above 2.5g) means internal damage, loose bolts, or bearing failure.
+        5. **〰️ Vibration Acceleration Amplitude (g)**:
+           - Root-Mean-Square (RMS) acceleration amplitude across 3 orthogonal axes ($a_x, a_y, a_z$).
 
-        6. **📈 Vibration Frequency (Hz)**:
-           - *What it is*: How fast the shaking cycles repeat per second.
-           - *Simple meaning*: Helps pinpoint exact failing parts inside the motor (like inner bearing rings BPFI or outer rings BPFO).
+        6. **📈 Characteristic Frequencies (Hz)**:
+           - Spectral peak components mapped to bearing defect harmonics (BPFI: 117.4 Hz, BPFO: 74.6 Hz).
 
-        7. **🩺 Health Score (0 to 100)**:
-           - *What it is*: The overall health condition of your motor.
-           - *Simple meaning*: **90–100** = Excellent (Healthy), **60–80** = Moderate Wear, **Below 40** = Critical Danger (Halt Machine!).
+        7. **🩺 Multimodal Health Index (0 to 100)**:
+           - Fused health metric computed via Late-Fusion LSTM neural network.
 
         8. **📊 Monte Carlo Dropout Uncertainty (±%)**:
-           - *What it is*: The AI's self-checked margin of error. A lower percentage (e.g., $\pm 3\%$) means the AI is very certain of its health diagnosis.
+           - Epistemic uncertainty computed via $N=50$ stochastic forward passes ($1.96 \cdot \sigma$).
 
-        9. **⏳ Estimated Time to Failure (ETF / RUL in Hours)**:
-           - *What it is*: How many working hours the motor can run before it is projected to break down completely.
+        9. **⏳ Remaining Useful Life (RUL / ETF in Hours)**:
+           - Projected operational lifespan prior to critical degradation limits.
         """)
 
     st.markdown("<br>", unsafe_allow_html=True)
