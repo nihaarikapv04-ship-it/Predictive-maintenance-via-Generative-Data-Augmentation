@@ -1,6 +1,6 @@
 """
 MotorGuard AI — Global CSS Design System
-Enterprise Industrial Theme for Apple Silicon & Edge Deployment
+Enterprise Industrial Theme with Strict Left Alignment for Sidebar Elements
 """
 import streamlit as st
 
@@ -60,14 +60,19 @@ def inject_css():
         font-weight: 500;
     }
 
-    /* INACTIVE SIDEBAR BUTTONS */
-    section[data-testid="stSidebar"] .stButton > button {
-        background: transparent !important;
-        color: #a8b2d8 !important;
-        border: 1px solid transparent !important;
+    /* STRICT LEFT ALIGNMENT FOR ALL SIDEBAR BUTTON CONTAINERS & CHILD TAGS */
+    section[data-testid="stSidebar"] .stButton {
         width: 100% !important;
-        text-align: left !important;
+    }
+    
+    section[data-testid="stSidebar"] .stButton > button,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"],
+    section[data-testid="stSidebar"] [data-testid="baseButton-primary"] {
+        display: flex !important;
         justify-content: flex-start !important;
+        align-items: center !important;
+        text-align: left !important;
+        width: 100% !important;
         padding: 11px 16px !important;
         font-size: 14px !important;
         font-weight: 500 !important;
@@ -75,28 +80,56 @@ def inject_css():
         margin-bottom: 6px !important;
         transition: all 0.2s ease-in-out !important;
     }
-    section[data-testid="stSidebar"] .stButton > button:hover {
+
+    section[data-testid="stSidebar"] .stButton > button *,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"] *,
+    section[data-testid="stSidebar"] [data-testid="baseButton-primary"] * {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        margin-left: 0 !important;
+        margin-right: auto !important;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button div,
+    section[data-testid="stSidebar"] .stButton > button p,
+    section[data-testid="stSidebar"] .stButton > button span,
+    section[data-testid="stSidebar"] .stButton > button markdown-element {
+        display: flex !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* INACTIVE SIDEBAR BUTTONS */
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"],
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"] {
+        background: transparent !important;
+        color: #a8b2d8 !important;
+        border: 1px solid transparent !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:hover {
         background: #1e2536 !important;
         color: #00d4ff !important;
         border-color: rgba(0, 212, 255, 0.2) !important;
-        transform: translateX(2px);
+        transform: translateX(3px);
     }
 
     /* ACTIVE HIGHLIGHT SIDEBAR BUTTONS */
     section[data-testid="stSidebar"] .stButton > button[kind="primary"],
-    section[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
-        background: linear-gradient(90deg, rgba(0, 212, 255, 0.18) 0%, rgba(0, 212, 255, 0.04) 100%) !important;
+    section[data-testid="stSidebar"] [data-testid="baseButton-primary"] {
+        background: linear-gradient(90deg, rgba(0, 212, 255, 0.22) 0%, rgba(0, 212, 255, 0.04) 100%) !important;
         color: #00d4ff !important;
         border-left: 4px solid #00d4ff !important;
-        border-top: 1px solid rgba(0, 212, 255, 0.25) !important;
-        border-right: 1px solid rgba(0, 212, 255, 0.25) !important;
-        border-bottom: 1px solid rgba(0, 212, 255, 0.25) !important;
+        border-top: 1px solid rgba(0, 212, 255, 0.3) !important;
+        border-right: 1px solid rgba(0, 212, 255, 0.3) !important;
+        border-bottom: 1px solid rgba(0, 212, 255, 0.3) !important;
         font-weight: 700 !important;
-        box-shadow: 0 2px 12px rgba(0, 212, 255, 0.15) !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        padding-left: 14px !important;
+        box-shadow: 0 2px 12px rgba(0, 212, 255, 0.18) !important;
         border-radius: 0 8px 8px 0 !important;
+        padding-left: 14px !important;
     }
 
     /* GENERAL MAIN PAGE BUTTON STYLING */
