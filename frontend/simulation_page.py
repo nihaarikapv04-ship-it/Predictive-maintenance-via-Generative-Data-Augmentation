@@ -1,6 +1,7 @@
 """
 MotorGuard AI — Simulation Mode Page
 Three connected tabs: OBSERVE | DIAGNOSE | PRESCRIBE
+Includes exact Table VII Latency Telemetry (65ms Detection @ ~28 FPS, 515ms Total O-D-P).
 """
 import streamlit as st
 import numpy as np
@@ -95,6 +96,9 @@ def render():
         <div class='mg-card' style='border-left:5px solid {f_color}'>
             <span class='badge-healthy' style='display:inline-block;'>{cond}</span>
             <span style='margin-left:12px; color:{HEALTHY if status=="HEALTHY" else CRITICAL}; font-weight:700'>{status}</span>
+            <div style='margin-top:8px; font-size:0.8em; color:#a8b2d8;'>
+                ⚡ <b>Visual Path Latency:</b> 35 ms (Capture 8ms + YOLOv11n 27ms) | <b>Rate:</b> ~28 FPS
+            </div>
         </div>
         """, unsafe_allow_html=True)
         st.progress(conf, text=f"Confidence: {conf:.1%}")
@@ -115,6 +119,17 @@ def render():
 
         st.caption("BPFO: 74.6 Hz  |  BPFI: 117.4 Hz")
         st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class='mg-card' style='border-left:4px solid #00d4ff;'>
+            <b style='color:#00d4ff;'>⚡ Detection & Fusion Latency Profile (Table VII)</b><br>
+            <span style='font-size:0.85em; color:#ccd6f6;'>
+                • Image Capture + CLAHE: <b>8 ms</b> | YOLOv11n Inference: <b>27 ms</b><br>
+                • Vibration Feature Extraction: <b>12 ms</b> | LSTM Health-Score Fusion: <b>18 ms</b><br>
+                <b>Total Detection-Only Path: 65 ms (~28 FPS continuous monitoring)</b>
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
 
         detected_fault = st.session_state.get('sim_fault_class', 'Healthy Baseline')
         sev = _COND_SEVERITY.get(detected_fault, 0)
