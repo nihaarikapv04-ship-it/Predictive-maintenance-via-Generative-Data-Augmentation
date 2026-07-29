@@ -98,11 +98,16 @@ def render():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # System Info
+    # ⏱️ System Latency Benchmarks (Table VII)
     st.markdown("---")
-    st.markdown("**System Information**")
+    st.markdown("### ⚡ System Latency & Performance Benchmarks (Table VII)")
+    
+    st.markdown("""
+    > *"The complete edge-based Observe–Diagnose–Prescribe pipeline executes in approximately **515 ms** on a Raspberry Pi 5, while the fault detection path alone completes in **65 ms**, enabling near real-time monitoring at around **28 FPS**."*
+    """)
+
     i1, i2, i3, i4 = st.columns(4)
-    i1.metric("YOLO Model", "v11n")
-    i2.metric("Fusion Model", "LSTM-MC")
-    i3.metric("RAG Backend", "Llama-3 8B")
-    i4.metric("Last Session", datetime.now().strftime("%H:%M"))
+    i1.metric("Detection Path Latency", "65 ms", "~28 FPS")
+    i2.metric("End-to-End Pipeline", "515 ms", "Total O-D-P")
+    i3.metric("YOLOv11n Inference", "27 ms", "Surface Defect")
+    i4.metric("Llama-3-8B Generation", "340 ms", "Prescriptive RAG")
